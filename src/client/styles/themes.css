@@ -1,0 +1,79 @@
+.theme-tokyo-night {
+  --bg-primary: #1a1b26;
+  --bg-secondary: #16161e;
+  --bg-tertiary: #24283b;
+  --bg-input: #13131a;
+  --text-primary: #a9b1d6;
+  --text-secondary: #565f89;
+  --text-heading: #e0af68;
+  --accent-blue: #7aa2f7;
+  --accent-purple: #bb9af7;
+  --accent-green: #9ece6a;
+  --accent-red: #f7768e;
+  --accent-yellow: #e0af68;
+  --accent-orange: #ff9e64;
+  --accent-cyan: #7dcfff;
+  --border: #292e42;
+  --scrollbar: #3b4261;
+  --scrollbar-hover: #565f89;
+}
+
+.theme-catppuccin-mocha {
+  --bg-primary: #1e1e2e;
+  --bg-secondary: #181825;
+  --bg-tertiary: #313244;
+  --bg-input: #11111b;
+  --text-primary: #cdd6f4;
+  --text-secondary: #6c7086;
+  --text-heading: #f9e2af;
+  --accent-blue: #89b4fa;
+  --accent-purple: #cba6f7;
+  --accent-green: #a6e3a1;
+  --accent-red: #f38ba8;
+  --accent-yellow: #f9e2af;
+  --accent-orange: #fab387;
+  --accent-cyan: #94e2d5;
+  --border: #45475a;
+  --scrollbar: #585b70;
+  --scrollbar-hover: #6c7086;
+}
+
+.theme-github-dark {
+  --bg-primary: #0d1117;
+  --bg-secondary: #010409;
+  --bg-tertiary: #161b22;
+  --bg-input: #0d1117;
+  --text-primary: #e6edf3;
+  --text-secondary: #7d8590;
+  --text-heading: #e6edf3;
+  --accent-blue: #58a6ff;
+  --accent-purple: #d2a8ff;
+  --accent-green: #3fb950;
+  --accent-red: #ff7b72;
+  --accent-yellow: #d29922;
+  --accent-orange: #d29922;
+  --accent-cyan: #39d2c0;
+  --border: #30363d;
+  --scrollbar: #484f58;
+  --scrollbar-hover: #6e7681;
+}
+
+.theme-github-light {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f6f8fa;
+  --bg-tertiary: #f0f2f5;
+  --bg-input: #ffffff;
+  --text-primary: #1f2328;
+  --text-secondary: #656d76;
+  --text-heading: #1f2328;
+  --accent-blue: #0969da;
+  --accent-purple: #8250df;
+  --accent-green: #1a7f37;
+  --accent-red: #cf222e;
+  --accent-yellow: #9a6700;
+  --accent-orange: #bc4c00;
+  --accent-cyan: #0550ae;
+  --border: #d0d7de;
+  --scrollbar: #afb8c1;
+  --scrollbar-hover: #8c959f;
+}
