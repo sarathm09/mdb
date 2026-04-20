@@ -3,6 +3,17 @@
   "version": "1.0.0",
   "module": "src/cli.ts",
   "type": "module",
+  "license": "MIT",
+  "description": "CLI tool to browse, view, edit and present markdown files in a web-based file explorer",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sarathm09/mdb.git"
+  },
+  "keywords": ["markdown", "browser", "editor", "presentation", "cli"],
+  "files": ["src/", "plugins/", "dist/", "build.ts", "tsconfig.json"],
+  "engines": {
+    "bun": ">=1.0.0"
+  },
   "bin": {
     "markdown-browser": "./src/cli.ts"
   },
@@ -25,13 +36,14 @@
     "reveal.js": "^6.0.0"
   },
   "devDependencies": {
-    "@types/bun": "latest",
-    "@types/dompurify": "^3",
-    "svelte": "^5",
-    "codemirror": "^6",
     "@codemirror/lang-markdown": "^6",
     "@codemirror/language-data": "^6",
-    "@codemirror/theme-one-dark": "^6"
+    "@codemirror/theme-one-dark": "^6",
+    "@types/bun": "latest",
+    "@types/dompurify": "^3",
+    "codemirror": "^6",
+    "playwright": "^1.59.1",
+    "svelte": "^5"
   },
   "peerDependencies": {
     "typescript": "^5"

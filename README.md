@@ -2,14 +2,39 @@
 
 A CLI tool that opens a web-based file explorer for browsing, creating, viewing, and editing markdown files in any directory. Features presentation mode, multiple themes, export options, syntax-highlighted code blocks, mermaid diagram support, and a full CodeMirror editor.
 
-## Install
+## Quick Start
+
+Run directly without installing:
 
 ```bash
+npx markdown-browser [directory]
+bunx markdown-browser [directory]
+```
+
+## Install
+
+### From npm (recommended)
+
+```bash
+npm install -g markdown-browser
+# or
+pnpm add -g markdown-browser
+# or
+yarn global add markdown-browser
+# or
+bun add -g markdown-browser
+```
+
+### From source
+
+```bash
+git clone https://github.com/sarathm09/mdb.git
+cd mdb
 bun install
 bun run build
 ```
 
-### Global Install (use from any directory)
+### Global Install (development from source)
 
 ```bash
 # From the project directory, link globally
@@ -28,7 +53,7 @@ To unlink: `bun unlink markdown-browser`
 
 ### Prerequisites
 
-- [Bun](https://bun.sh) v1.x or later
+- [Node.js](https://nodejs.org) v18+ or [Bun](https://bun.sh) v1.x or later
 
 ## Usage
 
@@ -204,46 +229,3 @@ The server exposes these endpoints:
 | POST | `/api/file` | Create file `{directory, name}` |
 | GET | `/api/raw?path=image.png` | Serve raw file (images, etc.) |
 
-## Project Structure
-
-```
-src/
-  cli.ts                        # CLI entry point
-  shared/types.ts               # Shared TypeScript types
-  server/
-    index.ts                    # Bun.serve() + Hono setup
-    routes/files.ts             # API route handlers
-    services/file-service.ts    # File system operations + path security
-  client/
-    main.ts                     # Svelte 5 bootstrap
-    App.svelte                  # Root layout component
-    components/
-      Sidebar.svelte            # Collapsible file tree
-      Breadcrumb.svelte         # Path breadcrumb navigation
-      FileExplorer.svelte       # File grid view
-      FilePreview.svelte        # Non-markdown file preview
-      MarkdownPreview.svelte    # Rendered markdown viewer
-      MarkdownEditor.svelte     # CodeMirror 6 editor
-      NewFileModal.svelte       # Create file dialog
-      PresentationMode.svelte   # Full-screen presentation/slides mode
-      ExportMenu.svelte         # Export dropdown menu
-      CommandPalette.svelte     # Command palette for file search + actions
-      ShortcutsHelpModal.svelte # Keyboard shortcuts dialog
-    stores/
-      navigation.ts             # Path, entries, sidebar state
-      editor.ts                 # Edit mode, content, dirty state
-    services/
-      api.ts                    # Typed API client
-    utils/
-      keyboard.ts               # Keyboard shortcut handling
-      markdown-renderer.ts      # Markdown parsing and rendering
-      export.ts                 # Export utility functions
-    styles/
-      global.css                # Base theme + layout
-      markdown.css              # Markdown rendered output styles
-      themes.css                # Theme definitions (5 themes)
-build.ts                        # Frontend build script (Bun.build + Svelte plugin)
-plugins/
-  svelte-plugin.ts              # Bun plugin for .svelte compilation
-dist/                           # Built frontend output (generated)
-```

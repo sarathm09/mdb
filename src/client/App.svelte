@@ -159,6 +159,27 @@
         return;
       }
 
+      if (!$selectedFile && !$isEditing && !isInputFocused()
+          && !commandPaletteOpen && !shortcutsHelpOpen && !showSettings && !isPresentationOpen && !exportMenuOpen) {
+        const vimKeys = ['j', 'k', 'l', 'h', 'g', 'G', 'ArrowDown', 'ArrowUp', 'Enter', 'Backspace'];
+        if (vimKeys.includes(e.key)) {
+          const explorerEl = document.querySelector('.file-explorer') as HTMLElement;
+          if (explorerEl && document.activeElement !== explorerEl) {
+            explorerEl.focus();
+            explorerEl.dispatchEvent(new KeyboardEvent('keydown', {
+              key: e.key,
+              code: e.code,
+              shiftKey: e.shiftKey,
+              ctrlKey: e.ctrlKey,
+              metaKey: e.metaKey,
+              bubbles: true,
+            }));
+            e.preventDefault();
+            return;
+          }
+        }
+      }
+
       if (e.key === '?' && !isInputFocused()) {
         shortcutsHelpOpen = !shortcutsHelpOpen;
         return;

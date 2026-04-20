@@ -137,3 +137,14 @@ export function readRawFile(rootDir: string, relativePath: string): BunFile {
   const filePath = resolveAndValidate(rootDir, relativePath);
   return Bun.file(filePath);
 }
+
+export async function uploadFile(rootDir: string, directory: string, file: File): Promise<string> {
+  const assetsDir = directory === '.' ? 'assets' : `${directory}/assets`;
+  const resolvedAssetsDir = resolveAndValidate(rootDir, assetsDir);
+  await import('node:fs/promises').then(fs => fs.mkdir(resolvedAssetsDir, { recursive: true }));
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const relativePath = `${assetsDir}/${safeName}`;
+  const filePath = resolveAndValidate(rootDir, relativePath);
+  await Bun.write(filePath, file);
+  return relativePath;
+}

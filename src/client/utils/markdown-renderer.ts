@@ -117,8 +117,13 @@ export async function renderMermaidBlocks(container: HTMLElement): Promise<void>
       const div = document.createElement('div');
       div.className = 'mermaid';
       div.textContent = '';
-      // Mermaid SVG output is sanitized with DOMPurify before DOM insertion
-      div.appendChild(new DOMParser().parseFromString(DOMPurify.sanitize(svg), 'text/html').body.firstChild!);
+      // Use SVG profile so DOMPurify preserves <style> tags inside mermaid SVGs;
+      // without them, text colors fall back to black and are unreadable on dark backgrounds.
+      const sanitizedSvg = DOMPurify.sanitize(svg, {
+        USE_PROFILES: { svg: true, svgFilters: true },
+        ADD_TAGS: ['style', 'foreignObject'],
+      });
+      div.appendChild(new DOMParser().parseFromString(sanitizedSvg, 'text/html').body.firstChild!);
       pre.replaceWith(div);
     } catch {
       /* skip invalid diagrams */

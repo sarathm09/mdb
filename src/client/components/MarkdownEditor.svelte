@@ -8,7 +8,7 @@
   import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
   import { content, originalContent, isDirty } from '../stores/editor';
   import { theme } from '../stores/navigation';
-  import { saveFile, fetchFile } from '../services/api';
+  import { saveFile, fetchFile, uploadFile } from '../services/api';
 
   let { filePath }: { filePath: string } = $props();
 
@@ -16,6 +16,7 @@
   let view: EditorView | undefined = $state();
   let saving = $state(false);
   let loading = $state(true);
+  let isDragging = $state(false);
   let initialized = false;
 
   const lightTheme = EditorView.theme({
@@ -121,6 +122,34 @@
   let tableRows = $state(2);
   let pendingView: EditorView | undefined = $state();
 
+  function handleDragOver(e: DragEvent) {
+    e.preventDefault();
+    isDragging = true;
+  }
+
+  function handleDragLeave(e: DragEvent) {
+    e.preventDefault();
+    isDragging = false;
+  }
+
+  async function handleDrop(e: DragEvent) {
+    e.preventDefault();
+    isDragging = false;
+    if (!e.dataTransfer?.files.length) return;
+    const dir = filePath.includes('/') ? filePath.substring(0, filePath.lastIndexOf('/')) : '.';
+    for (const file of e.dataTransfer.files) {
+      const uploadedPath = await uploadFile(file, dir);
+      const isImage = /\.(png|jpg|jpeg|gif|svg|webp|ico|bmp)$/i.test(file.name);
+      const relativeName = uploadedPath.split('/').pop() || file.name;
+      const relativeLink = `assets/${relativeName}`;
+      const mdLink = isImage ? `![${file.name}](${relativeLink})` : `[${file.name}](${relativeLink})`;
+      if (view) {
+        const pos = view.state.selection.main.head;
+        view.dispatch({ changes: { from: pos, insert: mdLink + '\n' } });
+      }
+    }
+  }
+
   function getThemeExtension(currentTheme: string) {
     return currentTheme === 'github-light' ? lightTheme : oneDark;
   }
@@ -209,7 +238,7 @@
   });
 </script>
 
-<div class="editor-container">
+<div class="editor-container" ondragover={handleDragOver} ondragleave={handleDragLeave} ondrop={handleDrop} class:drag-over={isDragging}>
   {#if loading}
     <div class="loading-state">Loading...</div>
   {/if}
@@ -252,6 +281,27 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+  }
+
+  .drag-over {
+    position: relative;
+  }
+
+  .drag-over::after {
+    content: 'Drop files here';
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(97, 175, 239, 0.1);
+    border: 2px dashed var(--accent-blue);
+    border-radius: 8px;
+    font-size: 18px;
+    color: var(--accent-blue);
+    font-weight: 600;
+    pointer-events: none;
+    z-index: 10;
   }
 
   .editor-area {

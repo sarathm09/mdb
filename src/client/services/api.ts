@@ -84,3 +84,13 @@ export async function openExternal(path: string, action: 'terminal' | 'finder' |
     throw new Error(error.error || 'Failed to open');
   }
 }
+
+export async function uploadFile(file: File, directory: string): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('directory', directory);
+  const res = await fetch('/api/upload', { method: 'POST', body: formData });
+  if (!res.ok) throw new Error('Upload failed');
+  const data = await res.json();
+  return data.path;
+}

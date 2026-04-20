@@ -106,6 +106,7 @@
           {@const isLoading = loadingDirs.has(entry.path)}
           <button
             class="tree-row"
+            class:expanded-dir={isExpanded}
             style="padding-left: {12 + depth * 16}px"
             onclick={() => toggleDir(entry.path)}
             ondblclick={() => navigateToDir(entry.path)}
@@ -147,12 +148,12 @@
   }
 
   .tree-header {
-    padding: 12px 16px 8px;
+    padding: 14px 16px 10px;
     border-bottom: 1px solid var(--border);
   }
 
   .tree-title {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     color: var(--text-secondary);
     text-transform: uppercase;
@@ -162,15 +163,15 @@
   .tree-content {
     flex: 1;
     overflow-y: auto;
-    padding: 4px 0;
+    padding: 6px 0;
   }
 
   .tree-row {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
     width: 100%;
-    padding: 3px 12px;
+    padding: 6px 12px;
     border: none;
     background: none;
     color: var(--text-primary);
@@ -179,7 +180,7 @@
     text-align: left;
     white-space: nowrap;
     transition: background 0.1s ease;
-    min-height: 26px;
+    min-height: 30px;
   }
 
   .tree-row:hover {
@@ -217,11 +218,15 @@
   }
 
   .tree-size {
-    font-size: 10px;
+    font-size: 11px;
     color: var(--text-secondary);
     flex-shrink: 0;
     margin-left: auto;
     padding-left: 8px;
+  }
+
+  .tree-row.expanded-dir {
+    background: rgba(97, 175, 239, 0.05);
   }
 
   .tree-file {

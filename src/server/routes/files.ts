@@ -9,6 +9,7 @@ import {
   readRawFile,
   searchFiles,
   resolveAndValidate,
+  uploadFile,
 } from "../services/file-service";
 
 export function createFileRoutes(rootDir: string): Hono {
@@ -77,6 +78,22 @@ export function createFileRoutes(rootDir: string): Hono {
       }
       const newPath = await createFile(rootDir, body.directory, body.name);
       return c.json({ path: newPath });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      return c.json({ error: message }, 500);
+    }
+  });
+
+  app.post('/upload', async (c) => {
+    try {
+      const body = await c.req.parseBody();
+      const file = body['file'];
+      const directory = (body['directory'] as string) || '.';
+      if (!file || !(file instanceof File)) {
+        return c.json({ error: 'No file provided' }, 400);
+      }
+      const result = await uploadFile(rootDir, directory, file);
+      return c.json({ path: result });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
       return c.json({ error: message }, 500);

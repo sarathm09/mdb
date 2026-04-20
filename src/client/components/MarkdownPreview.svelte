@@ -3,12 +3,15 @@
   import { content, originalContent, renderedHtml } from '../stores/editor';
   import { currentPath } from '../stores/navigation';
   import { renderMarkdown, postProcessElement } from '../utils/markdown-renderer';
+  import { parseFrontmatter } from '../utils/frontmatter';
+  import type { FrontmatterData } from '../utils/frontmatter';
 
   let { filePath }: { filePath: string } = $props();
 
   let htmlContent = $state('');
   let loading = $state(true);
   let previewEl: HTMLDivElement | undefined = $state();
+  let frontmatter: FrontmatterData | null = $state(null);
 
   $effect(() => {
     loadFile(filePath);
@@ -20,8 +23,10 @@
       const file = await fetchFile(path);
       $content = file.content;
       $originalContent = file.content;
+      const { frontmatter: fm, body } = parseFrontmatter(file.content);
+      frontmatter = fm;
       const dirPath = path.includes('/') ? path.substring(0, path.lastIndexOf('/')) : $currentPath;
-      htmlContent = await renderMarkdown(file.content, dirPath);
+      htmlContent = await renderMarkdown(body, dirPath);
       $renderedHtml = htmlContent;
     } catch (err) {
       htmlContent = `<p style="color: var(--accent-red)">Error loading file: ${String(err)}</p>`;
@@ -42,6 +47,21 @@
     <div class="loading-state">Loading...</div>
   {:else}
     <div class="markdown-body" bind:this={previewEl}>
+      {#if frontmatter && frontmatter.entries.length > 0}
+        <div class="frontmatter-panel">
+          <div class="frontmatter-header">Metadata</div>
+          <table class="frontmatter-table">
+            <tbody>
+              {#each frontmatter.entries as [key, value]}
+                <tr>
+                  <td class="fm-key">{key}</td>
+                  <td class="fm-value">{value}</td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+      {/if}
       {@html htmlContent}
     </div>
   {/if}
