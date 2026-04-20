@@ -15,7 +15,8 @@
     "bun": ">=1.0.0"
   },
   "bin": {
-    "markdown-browser": "./src/cli.ts"
+    "markdown-browser": "./src/cli.ts",
+    "mdb": "./src/cli.ts"
   },
   "scripts": {
     "build": "bun run build.ts",
