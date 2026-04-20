@@ -1,6 +1,6 @@
 {
   "name": "@sarathm09/mdb",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "module": "src/cli.ts",
   "type": "module",
   "license": "MIT",
@@ -60,5 +60,8 @@
   },
   "peerDependencies": {
     "typescript": "^5"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
