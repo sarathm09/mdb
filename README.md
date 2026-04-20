@@ -7,8 +7,8 @@ A CLI tool that opens a web-based file explorer for browsing, creating, viewing,
 Run directly without installing:
 
 ```bash
-npx markdown-browser [directory]
-bunx markdown-browser [directory]
+npx @sarathm09/mdb [directory]
+bunx @sarathm09/mdb [directory]
 ```
 
 ## Install
@@ -16,13 +16,13 @@ bunx markdown-browser [directory]
 ### From npm (recommended)
 
 ```bash
-npm install -g markdown-browser
+npm install -g @sarathm09/mdb
 # or
-pnpm add -g markdown-browser
+pnpm add -g @sarathm09/mdb
 # or
-yarn global add markdown-browser
+yarn global add @sarathm09/mdb
 # or
-bun add -g markdown-browser
+bun add -g @sarathm09/mdb
 ```
 
 ### From source
@@ -44,12 +44,12 @@ bun link
 export PATH="$HOME/.bun/bin:$PATH"
 
 # Now use from anywhere
-markdown-browser              # opens current directory
-markdown-browser ~/docs       # opens specific directory
-markdown-browser ./notes      # relative paths work too
+mdb              # opens current directory
+mdb ~/docs       # opens specific directory
+mdb ./notes      # relative paths work too
 ```
 
-To unlink: `bun unlink markdown-browser`
+To unlink: `bun unlink @sarathm09/mdb`
 
 ### Prerequisites
 
@@ -228,4 +228,3 @@ The server exposes these endpoints:
 | PUT | `/api/file` | Save file `{path, content}` |
 | POST | `/api/file` | Create file `{directory, name}` |
 | GET | `/api/raw?path=image.png` | Serve raw file (images, etc.) |
-

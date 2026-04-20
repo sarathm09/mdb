@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in contributing to markdown-browser!
+Thanks for your interest in contributing to @sarathm09/mdb!
 
 ## Prerequisites
 

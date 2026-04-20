@@ -84,13 +84,13 @@ export function createFileRoutes(rootDir: string): Hono {
     }
   });
 
-  app.post('/upload', async (c) => {
+  app.post("/upload", async (c) => {
     try {
       const body = await c.req.parseBody();
-      const file = body['file'];
-      const directory = (body['directory'] as string) || '.';
+      const file = body["file"];
+      const directory = (body["directory"] as string) || ".";
       if (!file || !(file instanceof File)) {
-        return c.json({ error: 'No file provided' }, 400);
+        return c.json({ error: "No file provided" }, 400);
       }
       const result = await uploadFile(rootDir, directory, file);
       return c.json({ path: result });
@@ -114,7 +114,7 @@ export function createFileRoutes(rootDir: string): Hono {
     }
   });
 
-  const settingsPath = path.join(rootDir, ".markdown-browser.json");
+  const settingsPath = path.join(rootDir, ".@sarathm09/mdb.json");
 
   app.get("/settings", async (c) => {
     try {
@@ -170,7 +170,7 @@ export function createFileRoutes(rootDir: string): Hono {
 
   app.post("/open-external", async (c) => {
     try {
-      const body = await c.req.json<{ path: string; action: 'terminal' | 'finder' | 'editor'; app?: string }>();
+      const body = await c.req.json<{ path: string; action: "terminal" | "finder" | "editor"; app?: string }>();
       if (!body.path || !body.action) {
         return c.json({ error: "Missing path or action" }, 400);
       }
@@ -180,18 +180,18 @@ export function createFileRoutes(rootDir: string): Hono {
       const execFileAsync = promisify(execFile);
 
       switch (body.action) {
-        case 'terminal': {
+        case "terminal": {
           const fileStat = await stat(resolvedPath);
           const dir = fileStat.isDirectory() ? resolvedPath : path.dirname(resolvedPath);
           const terminalApp = body.app || "Terminal";
           await execFileAsync("open", ["-a", terminalApp, dir]);
           break;
         }
-        case 'finder': {
+        case "finder": {
           await execFileAsync("open", ["-R", resolvedPath]);
           break;
         }
-        case 'editor': {
+        case "editor": {
           const args = body.app ? ["-a", body.app, resolvedPath] : [resolvedPath];
           await execFileAsync("open", args);
           break;
