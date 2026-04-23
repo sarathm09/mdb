@@ -1,6 +1,6 @@
 {
   "name": "@sarathm09/mdb",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "module": "src/cli.ts",
   "type": "module",
   "license": "MIT",
@@ -18,35 +18,23 @@
   ],
   "files": [
     "src/",
-    "plugins/",
     "dist/",
-    "build.ts",
-    "tsconfig.json"
+    "bin/",
+    "!dist/*.map"
   ],
-  "engines": {
-    "bun": ">=1.0.0"
-  },
   "bin": {
-    "markdown-browser": "./src/cli.ts",
-    "mdb": "./src/cli.ts"
+    "markdown-browser": "./bin/cli.cjs",
+    "mdb": "./bin/cli.cjs"
   },
   "scripts": {
     "build": "bun run build.ts",
-    "postinstall": "bun run build.ts",
+    "prepublishOnly": "bun run build.ts",
     "start": "bun run src/cli.ts",
     "dev": "bun run build.ts && bun --hot src/cli.ts"
   },
   "dependencies": {
-    "dompurify": "^3",
-    "highlight.js": "^11",
     "hono": "^4",
-    "html-to-image": "^1.11.13",
-    "jszip": "^3.10.1",
-    "marked": "^17",
-    "marked-highlight": "^2",
-    "mermaid": "^11",
-    "open": "^10",
-    "reveal.js": "^6.0.0"
+    "open": "^10"
   },
   "devDependencies": {
     "@codemirror/lang-markdown": "^6",
@@ -55,7 +43,15 @@
     "@types/bun": "latest",
     "@types/dompurify": "^3",
     "codemirror": "^6",
+    "dompurify": "^3",
+    "highlight.js": "^11",
+    "html-to-image": "^1.11.13",
+    "jszip": "^3.10.1",
+    "marked": "^17",
+    "marked-highlight": "^2",
+    "mermaid": "^11",
     "playwright": "^1.59.1",
+    "reveal.js": "^6.0.0",
     "svelte": "^5"
   },
   "peerDependencies": {
