@@ -1,4 +1,5 @@
 import sveltePlugin from "./plugins/svelte-plugin";
+import { build as esbuild } from "esbuild";
 
 const result = await Bun.build({
   entrypoints: ["./src/client/main.ts"],
@@ -10,7 +11,7 @@ const result = await Bun.build({
 });
 
 if (!result.success) {
-  console.error("Build failed:");
+  console.error("Client build failed:");
   for (const log of result.logs) {
     console.error(log);
   }
@@ -33,6 +34,28 @@ await Bun.write("./dist/index.html", `<!DOCTYPE html>
 </body>
 </html>`);
 
-await Bun.$`cp -r src/client/styles dist/styles`;
+await Bun.$`rm -rf dist/styles && cp -r src/client/styles dist/styles`;
 
-console.log(`Build complete: ${result.outputs.length} files written to dist/`);
+console.log(`Client build complete: ${result.outputs.length} files written to dist/`);
+
+const serverResult = await esbuild({
+  entryPoints: ["./src/cli.ts"],
+  bundle: true,
+  platform: "node",
+  target: "node18",
+  format: "esm",
+  outfile: "./dist/cli.mjs",
+  banner: { js: "#!/usr/bin/env node" },
+  external: ["open"],
+  minify: false,
+});
+
+if (serverResult.errors.length > 0) {
+  console.error("Server build failed:");
+  for (const err of serverResult.errors) {
+    console.error(err);
+  }
+  process.exit(1);
+}
+
+console.log("Server build complete: dist/cli.mjs");

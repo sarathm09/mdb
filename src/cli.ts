@@ -1,11 +1,11 @@
-#!/usr/bin/env bun
-
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { stat } from "node:fs/promises";
 import open from "open";
-import { startServer } from "./server/index";
+import { startServer } from "./server/index.js";
 
-const packageDir = path.resolve(import.meta.dir, "..");
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const distDir = __dirname;
 
 async function main() {
   const dirArg = process.argv[2] ?? process.cwd();
@@ -22,9 +22,7 @@ async function main() {
     process.exit(1);
   }
 
-  process.chdir(packageDir);
-
-  const port = startServer(rootDir);
+  const port = await startServer(rootDir, distDir);
   const url = `http://localhost:${port}`;
 
   console.log(`Markdown Browser serving: ${rootDir}`);

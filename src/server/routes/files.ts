@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import path from "node:path";
-import { stat } from "node:fs/promises";
+import { readFile as fsReadFile, writeFile as fsWriteFile, stat, access } from "node:fs/promises";
+import { createReadStream } from "node:fs";
 import {
   listDirectory,
   readFile,
@@ -106,8 +107,11 @@ export function createFileRoutes(rootDir: string): Hono {
       if (!filePath) {
         return c.json({ error: "Missing path parameter" }, 400);
       }
-      const file = readRawFile(rootDir, filePath);
-      return new Response(file);
+      const rawPath = readRawFile(rootDir, filePath);
+      const stream = createReadStream(rawPath);
+      const { Readable } = await import("node:stream");
+      const webStream = Readable.toWeb(stream) as ReadableStream;
+      return new Response(webStream);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
       return c.json({ error: message }, 400);
@@ -118,12 +122,9 @@ export function createFileRoutes(rootDir: string): Hono {
 
   app.get("/settings", async (c) => {
     try {
-      const file = Bun.file(settingsPath);
-      if (await file.exists()) {
-        const data = await file.json();
-        return c.json(data);
-      }
-      return c.json({});
+      await access(settingsPath);
+      const data = JSON.parse(await fsReadFile(settingsPath, "utf-8"));
+      return c.json(data);
     } catch {
       return c.json({});
     }
@@ -132,7 +133,7 @@ export function createFileRoutes(rootDir: string): Hono {
   app.put("/settings", async (c) => {
     try {
       const body = await c.req.json();
-      await Bun.write(settingsPath, JSON.stringify(body, null, 2));
+      await fsWriteFile(settingsPath, JSON.stringify(body, null, 2));
       return c.json({ success: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";

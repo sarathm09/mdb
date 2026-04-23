@@ -1,7 +1,6 @@
 {
   "name": "@sarathm09/mdb",
-  "version": "1.0.4",
-  "module": "src/cli.ts",
+  "version": "1.0.5",
   "type": "module",
   "license": "MIT",
   "description": "CLI tool to browse, view, edit and present markdown files in a web-based file explorer",
@@ -17,14 +16,12 @@
     "cli"
   ],
   "files": [
-    "src/",
     "dist/",
-    "bin/",
     "!dist/*.map"
   ],
   "bin": {
-    "markdown-browser": "./bin/cli.cjs",
-    "mdb": "./bin/cli.cjs"
+    "markdown-browser": "./dist/cli.mjs",
+    "mdb": "./dist/cli.mjs"
   },
   "scripts": {
     "build": "bun run build.ts",
@@ -33,17 +30,19 @@
     "dev": "bun run build.ts && bun --hot src/cli.ts"
   },
   "dependencies": {
-    "hono": "^4",
     "open": "^10"
   },
   "devDependencies": {
     "@codemirror/lang-markdown": "^6",
+    "@hono/node-server": "^2.0.0",
     "@codemirror/language-data": "^6",
+    "hono": "^4",
     "@codemirror/theme-one-dark": "^6",
     "@types/bun": "latest",
     "@types/dompurify": "^3",
     "codemirror": "^6",
     "dompurify": "^3",
+    "esbuild": "^0.28.0",
     "highlight.js": "^11",
     "html-to-image": "^1.11.13",
     "jszip": "^3.10.1",
@@ -53,9 +52,6 @@
     "playwright": "^1.59.1",
     "reveal.js": "^6.0.0",
     "svelte": "^5"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
   },
   "publishConfig": {
     "access": "public"

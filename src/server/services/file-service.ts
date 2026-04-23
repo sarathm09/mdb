@@ -1,5 +1,6 @@
 import path from "node:path";
-import { readdir, stat } from "node:fs/promises";
+import { readFile as fsReadFile, writeFile as fsWriteFile, readdir, stat, access, mkdir } from "node:fs/promises";
+import { createReadStream } from "node:fs";
 import type { DirectoryListing, FileContent, FileEntry } from "../../shared/types";
 
 export function resolveAndValidate(rootDir: string, relativePath: string): string {
@@ -53,7 +54,7 @@ export async function readFile(
   relativePath: string,
 ): Promise<FileContent> {
   const filePath = resolveAndValidate(rootDir, relativePath);
-  const content = await Bun.file(filePath).text();
+  const content = await fsReadFile(filePath, "utf-8");
   return { path: relativePath, content };
 }
 
@@ -63,7 +64,7 @@ export async function writeFile(
   content: string,
 ): Promise<void> {
   const filePath = resolveAndValidate(rootDir, relativePath);
-  await Bun.write(filePath, content);
+  await fsWriteFile(filePath, content);
 }
 
 export async function createFile(
@@ -74,7 +75,7 @@ export async function createFile(
   const fileName = /\.(md|markdown)$/i.test(name) ? name : `${name}.md`;
   const relativePath = path.join(directory, fileName);
   const filePath = resolveAndValidate(rootDir, relativePath);
-  await Bun.write(filePath, "");
+  await fsWriteFile(filePath, "");
   return relativePath;
 }
 
@@ -133,18 +134,19 @@ export async function searchFiles(
   return results;
 }
 
-export function readRawFile(rootDir: string, relativePath: string): BunFile {
+export function readRawFile(rootDir: string, relativePath: string): string {
   const filePath = resolveAndValidate(rootDir, relativePath);
-  return Bun.file(filePath);
+  return filePath;
 }
 
 export async function uploadFile(rootDir: string, directory: string, file: File): Promise<string> {
   const assetsDir = directory === '.' ? 'assets' : `${directory}/assets`;
   const resolvedAssetsDir = resolveAndValidate(rootDir, assetsDir);
-  await import('node:fs/promises').then(fs => fs.mkdir(resolvedAssetsDir, { recursive: true }));
+  await mkdir(resolvedAssetsDir, { recursive: true });
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
   const relativePath = `${assetsDir}/${safeName}`;
   const filePath = resolveAndValidate(rootDir, relativePath);
-  await Bun.write(filePath, file);
+  const buffer = Buffer.from(await file.arrayBuffer());
+  await fsWriteFile(filePath, buffer);
   return relativePath;
 }
