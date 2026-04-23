@@ -11,7 +11,7 @@ function downloadFile(content: string, filename: string, mimeType: string): void
   URL.revokeObjectURL(url);
 }
 
-function cleanMarkdown(raw: string, stripSections: boolean): string {
+export function cleanMarkdown(raw: string, stripSections: boolean): string {
   let output = raw;
   if (stripSections) {
     output = output.replace(/^[\t ]*(-{3,}|_{3,}|\*{3,})[\t ]*$/gm, '');

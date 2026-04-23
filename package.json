@@ -27,23 +27,26 @@
     "build": "bun run build.ts",
     "prepublishOnly": "bun run build.ts",
     "start": "bun run src/cli.ts",
-    "dev": "bun run build.ts && bun --hot src/cli.ts"
+    "dev": "bun run build.ts && bun --hot src/cli.ts",
+    "test": "bun test",
+    "test:coverage": "bun test --coverage"
   },
   "dependencies": {
     "open": "^10"
   },
   "devDependencies": {
     "@codemirror/lang-markdown": "^6",
-    "@hono/node-server": "^2.0.0",
     "@codemirror/language-data": "^6",
-    "hono": "^4",
     "@codemirror/theme-one-dark": "^6",
+    "@hono/node-server": "^2.0.0",
     "@types/bun": "latest",
     "@types/dompurify": "^3",
     "codemirror": "^6",
     "dompurify": "^3",
     "esbuild": "^0.28.0",
+    "happy-dom": "^20.9.0",
     "highlight.js": "^11",
+    "hono": "^4",
     "html-to-image": "^1.11.13",
     "jszip": "^3.10.1",
     "marked": "^17",
