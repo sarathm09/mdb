@@ -1,5 +1,5 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { Window } from "happy-dom";
+// @vitest-environment happy-dom
+import { describe, test, expect, beforeEach, afterEach, vi } from "vitest";
 import { cleanMarkdown } from "./export";
 
 describe("cleanMarkdown", () => {
@@ -92,39 +92,9 @@ describe("cleanMarkdown", () => {
 });
 
 describe("DOM-dependent export functions", () => {
-  let window: InstanceType<typeof Window>;
-  let originalGlobals: Record<string, any>;
-
-  beforeEach(() => {
-    window = new Window({ url: "http://localhost" });
-    originalGlobals = {
-      document: globalThis.document,
-      window: globalThis.window,
-      navigator: globalThis.navigator,
-      URL: globalThis.URL,
-      Blob: globalThis.Blob,
-      DOMParser: globalThis.DOMParser,
-      ClipboardItem: globalThis.ClipboardItem,
-    };
-    Object.assign(globalThis, {
-      document: window.document,
-      window: window,
-      navigator: window.navigator,
-      URL: window.window.URL,
-      Blob: window.window.Blob,
-      DOMParser: window.window.DOMParser,
-    });
-  });
-
-  afterEach(() => {
-    Object.assign(globalThis, originalGlobals);
-    window.close();
-  });
-
   test("exportAsMarkdown triggers download with correct filename", async () => {
     const { exportAsMarkdown } = await import("./export");
     let downloadedName = "";
-    let downloadedHref = "";
 
     const origCreate = document.createElement.bind(document);
     document.createElement = ((tag: string) => {
@@ -132,7 +102,6 @@ describe("DOM-dependent export functions", () => {
       if (tag === "a") {
         Object.defineProperty(el, "click", { value: () => {
           downloadedName = (el as any).download;
-          downloadedHref = (el as any).href;
         }});
       }
       return el;
@@ -144,27 +113,26 @@ describe("DOM-dependent export functions", () => {
 
   test("exportAsHtml generates correct HTML document", async () => {
     const { exportAsHtml } = await import("./export");
-    let downloadedContent = "";
+    let lastCreatedAnchor: any = null;
 
     const origCreate = document.createElement.bind(document);
     document.createElement = ((tag: string) => {
       const el = origCreate(tag);
       if (tag === "a") {
-        Object.defineProperty(el, "click", { value: () => {
-          downloadedContent = (el as any).href;
-        }});
+        lastCreatedAnchor = el;
       }
       return el;
     }) as typeof document.createElement;
 
     exportAsHtml("docs/page.md", "<h1>Hello</h1>");
-    expect(downloadedContent).toBeTruthy();
+    expect(lastCreatedAnchor).not.toBeNull();
+    expect(lastCreatedAnchor.download).toBe("page.html");
   });
 
   test("printAsPdf calls window.print when no content provided", async () => {
     const { printAsPdf } = await import("./export");
     let printed = false;
-    (globalThis as any).window.print = () => { printed = true; };
+    (window as any).print = () => { printed = true; };
     printAsPdf();
     expect(printed).toBe(true);
   });
@@ -172,8 +140,8 @@ describe("DOM-dependent export functions", () => {
   test("printAsPdf calls window.print when open returns null", async () => {
     const { printAsPdf } = await import("./export");
     let printed = false;
-    (globalThis as any).window.print = () => { printed = true; };
-    (globalThis as any).window.open = () => null;
+    (window as any).print = () => { printed = true; };
+    (window as any).open = () => null;
     printAsPdf("<p>Content</p>", "Test");
     expect(printed).toBe(true);
   });
@@ -213,15 +181,13 @@ describe("DOM-dependent export functions", () => {
       close: () => {},
       onload: null as any,
     };
-    (globalThis as any).window.open = () => fakeWindow;
+    (window as any).open = () => fakeWindow;
     printAsPdf("<h1>Test</h1>", "Test Title");
 
-    // Trigger the onload callback if set
     if (fakeWindow.onload) {
       fakeWindow.onload(new Event("load"));
     }
 
-    // Wait for setTimeout(500) callback
     await new Promise((r) => setTimeout(r, 600));
 
     expect(writtenHtml).toContain("<h1>Test</h1>");

@@ -44,8 +44,11 @@ export async function createFile(directory: string, name: string): Promise<strin
   return data.path;
 }
 
-export async function searchFiles(query: string, showHidden: boolean = false): Promise<FileEntry[]> {
-  const response = await fetch(`/api/search?q=${encodeURIComponent(query)}&showHidden=${showHidden}`);
+export async function searchFiles(query: string, showHidden: boolean = false, maxDepth?: number, types?: 'all' | 'markdown'): Promise<FileEntry[]> {
+  let url = `/api/search?q=${encodeURIComponent(query)}&showHidden=${showHidden}`;
+  if (maxDepth !== undefined) url += `&maxDepth=${maxDepth}`;
+  if (types) url += `&types=${types}`;
+  const response = await fetch(url);
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Failed to search files' }));
     throw new Error(error.error || 'Failed to search files');

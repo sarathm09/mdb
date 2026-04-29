@@ -72,7 +72,7 @@
     loading = true;
     debounceTimer = setTimeout(async () => {
       try {
-        results = await searchFiles(q, $showHiddenFiles);
+        results = await searchFiles(q, $showHiddenFiles, 100, 'all');
         selectedIndex = 0;
       } catch {
         results = [];

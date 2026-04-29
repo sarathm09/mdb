@@ -23,7 +23,10 @@ export function createFileRoutes(rootDir: string): Hono {
         return c.json([]);
       }
       const showHidden = c.req.query("showHidden") === "true";
-      const results = await searchFiles(rootDir, query.trim(), 20, 10, showHidden);
+      const types = c.req.query("types") || "markdown";
+      const maxDepth = parseInt(c.req.query("maxDepth") || "100", 10) || 100;
+      const allFileTypes = types === "all";
+      const results = await searchFiles(rootDir, query.trim(), 50, maxDepth, showHidden, allFileTypes);
       return c.json(results);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { currentPath, entries, selectedFile, sidebarOpen, showHiddenFiles, theme, sidebarFontSize, initFromUrl } from './stores/navigation';
+  import { currentPath, entries, selectedFile, sidebarOpen, showHiddenFiles, theme, sidebarFontSize, fontFamily, contentFontSize, lineHeight, contentMaxWidth, initFromUrl } from './stores/navigation';
   import { isEditing, content, originalContent, isDirty } from './stores/editor';
   import { fetchDirectory, saveFile, openExternal, getSettings, saveSettings as saveSettingsApi } from './services/api';
   import { isInputFocused } from './utils/keyboard';
@@ -13,6 +13,7 @@
   import CommandPalette from './components/CommandPalette.svelte';
   import PresentationMode from './components/PresentationMode.svelte';
   import ExportMenu from './components/ExportMenu.svelte';
+  import Settings from './components/Settings.svelte';
 
   let shortcutsHelpOpen = $state(false);
   let isPresentationOpen = $state(false);
@@ -54,34 +55,36 @@
   }
 
   let editorLabel = $derived(editorApp || 'Default App');
-  let showSettings = $state(false);
-  let settingsTerminal = $state('');
-  let settingsEditor = $state('');
-  let settingsShowHidden = $state(false);
-  let settingsTheme = $state('one-dark');
-  let settingsFontSize = $state(14);
+  let showSettingsPage = $state(false);
 
-  function openSettings() {
-    settingsTerminal = terminalApp;
-    settingsEditor = editorApp;
-    settingsShowHidden = $showHiddenFiles;
-    settingsTheme = $theme;
-    settingsFontSize = $sidebarFontSize;
-    showSettings = true;
+  const fontFamiliesMap: Record<string, string> = {
+    'system': "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    'inter': "'Inter', sans-serif",
+    'jetbrains-mono': "'JetBrains Mono', monospace",
+    'fira-code': "'Fira Code', monospace",
+    'source-sans': "'Source Sans 3', sans-serif",
+    'excalifont': "'Excalifont', cursive, sans-serif",
+  };
+
+  function applyFontSettings() {
+    const root = document.documentElement;
+    const storedFont = localStorage.getItem('mb-font-family') || 'system';
+    root.style.setProperty('--font-family', fontFamiliesMap[storedFont] || fontFamiliesMap.system);
+    root.style.setProperty('--font-size-content', `${localStorage.getItem('mb-content-font-size') || '15'}px`);
+    root.style.setProperty('--line-height-content', localStorage.getItem('mb-line-height') || '1.7');
+    root.style.setProperty('--content-max-width', `${localStorage.getItem('mb-content-max-width') || '900'}px`);
   }
 
-  async function handleSaveSettings() {
-    terminalApp = settingsTerminal.trim();
-    editorApp = settingsEditor.trim();
-    const hiddenChanged = settingsShowHidden !== $showHiddenFiles;
-    $showHiddenFiles = settingsShowHidden;
-    $theme = settingsTheme;
-    $sidebarFontSize = settingsFontSize;
-    localStorage.setItem('mb-theme', settingsTheme);
-    localStorage.setItem('mb-sidebar-font-size', String(settingsFontSize));
-    document.documentElement.className = settingsTheme === 'one-dark' ? '' : `theme-${settingsTheme}`;
-    showSettings = false;
-    await saveSettingsApi({ terminalApp, editorApp, showHidden: $showHiddenFiles, theme: $theme, sidebarFontSize: $sidebarFontSize }).catch(() => {});
+  function openSettings() {
+    showSettingsPage = true;
+  }
+
+  async function handleSaveSettings(settings: Record<string, unknown>) {
+    terminalApp = (settings.terminalApp as string) || '';
+    editorApp = (settings.editorApp as string) || '';
+    const hiddenChanged = (settings.showHidden as boolean) !== $showHiddenFiles;
+    showSettingsPage = false;
+    await saveSettingsApi(settings).catch(() => {});
     if (hiddenChanged) {
       const listing = await fetchDirectory($currentPath, $showHiddenFiles);
       $entries = listing.entries;
@@ -113,7 +116,24 @@
       $sidebarFontSize = settings.sidebarFontSize as number;
       localStorage.setItem('mb-sidebar-font-size', String($sidebarFontSize));
     }
+    if (settings.fontFamily) {
+      $fontFamily = settings.fontFamily as string;
+      localStorage.setItem('mb-font-family', $fontFamily);
+    }
+    if (typeof settings.contentFontSize === 'number') {
+      $contentFontSize = settings.contentFontSize as number;
+      localStorage.setItem('mb-content-font-size', String($contentFontSize));
+    }
+    if (typeof settings.lineHeight === 'number') {
+      $lineHeight = settings.lineHeight as number;
+      localStorage.setItem('mb-line-height', String($lineHeight));
+    }
+    if (typeof settings.contentMaxWidth === 'number') {
+      $contentMaxWidth = settings.contentMaxWidth as number;
+      localStorage.setItem('mb-content-max-width', String($contentMaxWidth));
+    }
     document.documentElement.className = $theme === 'one-dark' ? '' : `theme-${$theme}`;
+    applyFontSettings();
 
     const { dir } = initFromUrl();
     const listing = await fetchDirectory(dir, $showHiddenFiles);
@@ -144,6 +164,12 @@
         return;
       }
 
+      if (mod && e.key === ',') {
+        e.preventDefault();
+        showSettingsPage = !showSettingsPage;
+        return;
+      }
+
       if (mod && e.shiftKey && e.key.toLowerCase() === 'e') {
         e.preventDefault();
         if ($selectedFile && isMarkdownFile && !$isEditing) {
@@ -153,6 +179,7 @@
       }
 
       if (e.key === 'Escape') {
+        if (showSettingsPage) { showSettingsPage = false; return; }
         if (commandPaletteOpen) { commandPaletteOpen = false; return; }
         if (shortcutsHelpOpen) { shortcutsHelpOpen = false; return; }
         if ($selectedFile) { $selectedFile = null; $isEditing = false; return; }
@@ -160,7 +187,7 @@
       }
 
       if (!$selectedFile && !$isEditing && !isInputFocused()
-          && !commandPaletteOpen && !shortcutsHelpOpen && !showSettings && !isPresentationOpen && !exportMenuOpen) {
+          && !commandPaletteOpen && !shortcutsHelpOpen && !showSettingsPage && !isPresentationOpen && !exportMenuOpen) {
         const vimKeys = ['j', 'k', 'l', 'h', 'g', 'G', 'ArrowDown', 'ArrowUp', 'Enter', 'Backspace'];
         if (vimKeys.includes(e.key)) {
           const explorerEl = document.querySelector('.file-explorer') as HTMLElement;
@@ -256,7 +283,9 @@
       <div class="resize-handle" onmousedown={startResize} role="separator" aria-orientation="vertical"></div>
     {/if}
     <div class="content" class:no-select={isResizing}>
-      {#if $selectedFile && $isEditing}
+      {#if showSettingsPage}
+        <Settings onClose={() => showSettingsPage = false} onSave={handleSaveSettings} />
+      {:else if $selectedFile && $isEditing}
         <MarkdownEditor filePath={$selectedFile} />
       {:else if $selectedFile && isMarkdownFile}
         <MarkdownPreview filePath={$selectedFile} />
@@ -276,48 +305,6 @@
   <PresentationMode isOpen={isPresentationOpen} filePath={$selectedFile} onClose={() => isPresentationOpen = false} />
 {/if}
 
-{#if showSettings}
-  <div class="settings-backdrop" onclick={(e) => { if ((e.target as HTMLElement).classList.contains('settings-backdrop')) showSettings = false; }} onkeydown={(e) => { if (e.key === 'Escape') showSettings = false; }} role="dialog" aria-modal="true">
-    <div class="settings-card">
-      <h3 class="settings-title">Settings</h3>
-      <div class="settings-field">
-        <label class="settings-label" for="theme-select">Theme</label>
-        <select id="theme-select" class="settings-input" bind:value={settingsTheme}>
-          <option value="one-dark">One Dark</option>
-          <option value="tokyo-night">Tokyo Night</option>
-          <option value="catppuccin-mocha">Catppuccin Mocha</option>
-          <option value="github-dark">GitHub Dark</option>
-          <option value="github-light">GitHub Light</option>
-        </select>
-      </div>
-      <div class="settings-field">
-        <label class="settings-label" for="sidebar-font-size">Sidebar Font Size: {settingsFontSize}px</label>
-        <input id="sidebar-font-size" class="settings-input" type="range" min="12" max="18" step="1" bind:value={settingsFontSize} />
-      </div>
-      <div class="settings-field">
-        <label class="settings-label" for="terminal-app">Terminal Application</label>
-        <input id="terminal-app" class="settings-input" type="text" bind:value={settingsTerminal} placeholder="Terminal" />
-        <span class="settings-hint">e.g. Terminal, iTerm, Warp, Alacritty</span>
-      </div>
-      <div class="settings-field">
-        <label class="settings-label" for="editor-app">External Editor</label>
-        <input id="editor-app" class="settings-input" type="text" bind:value={settingsEditor} placeholder="System default" />
-        <span class="settings-hint">e.g. Visual Studio Code, Sublime Text, Zed</span>
-      </div>
-      <div class="settings-field">
-        <label class="settings-toggle">
-          <input type="checkbox" bind:checked={settingsShowHidden} />
-          <span class="toggle-text">Show hidden files</span>
-        </label>
-        <span class="settings-hint">Show files and folders starting with a dot (e.g. .gitignore, .env)</span>
-      </div>
-      <div class="settings-actions">
-        <button class="topbar-btn" onclick={() => showSettings = false}>Cancel</button>
-        <button class="topbar-btn topbar-save-btn" onclick={handleSaveSettings}>Save</button>
-      </div>
-    </div>
-  </div>
-{/if}
 
 <style>
   .hamburger {
@@ -416,92 +403,6 @@
   .topbar-btn-icon:hover {
     color: var(--text-primary);
     background: var(--bg-tertiary);
-  }
-
-  .settings-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 100;
-  }
-
-  .settings-card {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 24px;
-    width: 400px;
-    max-width: 90vw;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  }
-
-  .settings-title {
-    margin: 0 0 20px 0;
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-
-  .settings-field {
-    margin-bottom: 16px;
-  }
-
-  .settings-label {
-    display: block;
-    font-size: 13px;
-    color: var(--text-secondary);
-    margin-bottom: 6px;
-  }
-
-  .settings-input {
-    width: 100%;
-    padding: 10px 12px;
-    background: var(--bg-primary);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    color: var(--text-primary);
-    font-size: 14px;
-    box-sizing: border-box;
-  }
-
-  .settings-input:focus {
-    border-color: var(--accent-blue);
-  }
-
-  .settings-hint {
-    display: block;
-    font-size: 12px;
-    color: var(--text-secondary);
-    margin-top: 4px;
-  }
-
-  .settings-toggle {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    cursor: pointer;
-  }
-
-  .settings-toggle input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
-    accent-color: var(--accent-blue);
-    cursor: pointer;
-  }
-
-  .toggle-text {
-    font-size: 14px;
-    color: var(--text-primary);
-  }
-
-  .settings-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    margin-top: 20px;
   }
 
   .resize-handle {

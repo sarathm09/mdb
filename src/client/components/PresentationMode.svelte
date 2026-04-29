@@ -79,8 +79,21 @@
 
       await postProcessElement(revealContainer);
 
+      markScrollableSlides(revealContainer);
+      setupScrollInterception(revealContainer);
+
       deck.on('slidechanged', () => {
-        if (revealContainer) postProcessElement(revealContainer);
+        if (revealContainer) {
+          postProcessElement(revealContainer);
+          const scrollables = revealContainer.querySelectorAll('.scrollable-slide');
+          for (const el of scrollables) {
+            el.scrollTop = 0;
+          }
+          const hints = revealContainer.querySelectorAll('.scroll-hint');
+          for (const hint of hints) {
+            hint.remove();
+          }
+        }
       });
     } catch (err) {
       console.error('Failed to initialize presentation:', err);
@@ -144,6 +157,34 @@
         }
       }
     }
+  }
+
+  function markScrollableSlides(container: HTMLDivElement) {
+    const sections = container.querySelectorAll('.slides section');
+    for (const section of sections) {
+      if (section.scrollHeight > section.clientHeight + 10) {
+        section.classList.add('scrollable-slide');
+        const hint = document.createElement('div');
+        hint.className = 'scroll-hint';
+        hint.textContent = '\u2193 Scroll for more';
+        section.appendChild(hint);
+      }
+    }
+  }
+
+  function setupScrollInterception(container: HTMLDivElement) {
+    container.addEventListener('wheel', (e: WheelEvent) => {
+      const target = e.target as HTMLElement;
+      const scrollable = target.closest('.scrollable-slide') as HTMLElement | null;
+      if (!scrollable) return;
+
+      const atTop = scrollable.scrollTop <= 0 && e.deltaY < 0;
+      const atBottom = scrollable.scrollTop + scrollable.clientHeight >= scrollable.scrollHeight - 1 && e.deltaY > 0;
+
+      if (!atTop && !atBottom) {
+        e.stopPropagation();
+      }
+    }, { capture: true });
   }
 
   function cleanup() {
@@ -471,6 +512,39 @@
   :global(.reveal .slide-number) {
     color: var(--text-secondary);
     background: var(--bg-secondary);
+  }
+
+  :global(.reveal .slides section.scrollable-slide) {
+    overflow-y: auto !important;
+    max-height: 100%;
+  }
+
+  :global(.reveal .slides section.scrollable-slide::-webkit-scrollbar) {
+    width: 6px;
+  }
+
+  :global(.reveal .slides section.scrollable-slide::-webkit-scrollbar-thumb) {
+    background: var(--scrollbar);
+    border-radius: 3px;
+  }
+
+  :global(.reveal .slides section .scroll-hint) {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px;
+    color: var(--text-secondary);
+    opacity: 0.7;
+    pointer-events: none;
+    animation: scrollHintFade 3s ease-in-out forwards;
+  }
+
+  @keyframes scrollHintFade {
+    0% { opacity: 0; }
+    20% { opacity: 0.7; }
+    80% { opacity: 0.7; }
+    100% { opacity: 0; }
   }
 
   :global(.reveal section.markdown-body img) {

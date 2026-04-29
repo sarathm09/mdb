@@ -89,8 +89,8 @@
     overflow-y: auto;
     padding: 24px 32px;
     color: var(--text-primary);
-    line-height: 1.7;
-    font-size: 15px;
+    line-height: var(--line-height-content, 1.7);
+    font-size: var(--font-size-content, 15px);
   }
 
   .markdown-body :global(h1) {

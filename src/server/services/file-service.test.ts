@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach } from "vitest";
 import path from "node:path";
 import { mkdtemp, rm, mkdir, writeFile as fsWriteFile, readFile as fsReadFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -292,6 +292,30 @@ describe("searchFiles", () => {
     for (const r of results) {
       expect(r.isMarkdown).toBe(true);
     }
+  });
+
+  test("returns non-markdown files when allFileTypes is true", async () => {
+    const results = await searchFiles(rootDir, "data", 50, 100, false, true);
+    expect(results).toHaveLength(1);
+    expect(results[0].name).toBe("data.json");
+    expect(results[0].isMarkdown).toBe(false);
+  });
+
+  test("returns both markdown and non-markdown files when allFileTypes is true", async () => {
+    const results = await searchFiles(rootDir, "", 50, 100, false, true);
+    const names = results.map((r) => r.name);
+    expect(names).toContain("data.json");
+    expect(names).toContain("readme.md");
+  });
+
+  test("works with higher maxDepth", async () => {
+    await mkdir(path.join(rootDir, "a", "b", "c", "d"), { recursive: true });
+    await fsWriteFile(path.join(rootDir, "a", "b", "c", "d", "buried.md"), "buried");
+    const shallow = await searchFiles(rootDir, "buried", 50, 2);
+    expect(shallow).toHaveLength(0);
+    const deep = await searchFiles(rootDir, "buried", 50, 100);
+    expect(deep).toHaveLength(1);
+    expect(deep[0].name).toBe("buried.md");
   });
 });
 

@@ -8,11 +8,8 @@ export function startServer(rootDir: string, distDir: string): Promise<number> {
 
   app.route("/api", createFileRoutes(rootDir));
 
-  app.use("/styles/*", serveStatic({ root: distDir }));
-  app.use("/main.js", serveStatic({ root: distDir, path: "/main.js" }));
-  app.use("/main.js.map", serveStatic({ root: distDir, path: "/main.js.map" }));
-  app.use("/main.css", serveStatic({ root: distDir, path: "/main.css" }))
-
+  app.use("/assets/*", serveStatic({ root: distDir }));
+  app.use("*", serveStatic({ root: distDir }));
   app.get("*", serveStatic({ root: distDir, path: "/index.html" }));
 
   return new Promise((resolve) => {

@@ -82,9 +82,10 @@ export async function createFile(
 export async function searchFiles(
   rootDir: string,
   query: string,
-  maxResults: number = 20,
-  maxDepth: number = 10,
+  maxResults: number = 50,
+  maxDepth: number = 100,
   showHidden: boolean = false,
+  allFileTypes: boolean = false,
 ): Promise<FileEntry[]> {
   const results: FileEntry[] = [];
   const lowerQuery = query.toLowerCase();
@@ -107,14 +108,14 @@ export async function searchFiles(
         await walk(fullPath, depth + 1);
       } else {
         const ext = path.extname(name).toLowerCase();
-        if (ext !== ".md" && ext !== ".markdown") continue;
+        if (!allFileTypes && ext !== ".md" && ext !== ".markdown") continue;
         const relPath = path.relative(rootDir, fullPath);
         if (!relPath.toLowerCase().includes(lowerQuery)) continue;
         results.push({
           name,
           path: relPath,
           isDirectory: false,
-          isMarkdown: true,
+          isMarkdown: ext === ".md" || ext === ".markdown",
           size: info.size,
           modifiedAt: info.mtime.toISOString(),
         });

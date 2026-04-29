@@ -1,34 +1,46 @@
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { stat } from "node:fs/promises";
-import open from "open";
-import { startServer } from "./server/index.js";
+import { serve } from "./cli/commands/serve.js";
+import { convert } from "./cli/commands/convert.js";
+import { copy } from "./cli/commands/copy.js";
+import { present } from "./cli/commands/present.js";
+import { help } from "./cli/commands/help.js";
+import { version } from "./cli/commands/version.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const distDir = __dirname;
+const COMMANDS: Record<string, (args: string[]) => Promise<void>> = {
+  serve,
+  open: serve,
+  convert,
+  copy,
+  present,
+  help,
+  version,
+};
 
 async function main() {
-  const dirArg = process.argv[2] ?? process.cwd();
-  const rootDir = path.resolve(dirArg);
+  const arg = process.argv[2];
+  const rest = process.argv.slice(3);
 
-  try {
-    const info = await stat(rootDir);
-    if (!info.isDirectory()) {
-      console.error(`Error: ${rootDir} is not a directory`);
-      process.exit(1);
-    }
-  } catch {
-    console.error(`Error: Directory does not exist: ${rootDir}`);
-    process.exit(1);
+  if (!arg) {
+    await serve([]);
+    return;
   }
 
-  const port = await startServer(rootDir, distDir);
-  const url = `http://localhost:${port}`;
+  if (arg === "--help" || arg === "-h") {
+    await help();
+    return;
+  }
 
-  console.log(`Markdown Browser serving: ${rootDir}`);
-  console.log(`Open in browser: ${url}`);
+  if (arg === "--version" || arg === "-v") {
+    await version();
+    return;
+  }
 
-  await open(url);
+  const command = COMMANDS[arg];
+  if (command) {
+    await command(rest);
+    return;
+  }
+
+  await serve([arg]);
 }
 
 main().catch((err) => {

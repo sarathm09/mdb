@@ -1,43 +1,13 @@
-import sveltePlugin from "./plugins/svelte-plugin";
 import { build as esbuild } from "esbuild";
+import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 
-const result = await Bun.build({
-  entrypoints: ["./src/client/main.ts"],
-  outdir: "./dist",
-  plugins: [sveltePlugin],
-  minify: true,
-  sourcemap: "linked",
-  target: "browser",
-});
+const pkg = JSON.parse(readFileSync("./package.json", "utf-8"));
 
-if (!result.success) {
-  console.error("Client build failed:");
-  for (const log of result.logs) {
-    console.error(log);
-  }
-  process.exit(1);
-}
+console.log("Building client with Vite...");
+execFileSync("npx", ["vite", "build"], { stdio: "inherit" });
 
-await Bun.write("./dist/index.html", `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Markdown Browser</title>
-  <link rel="stylesheet" href="/styles/global.css">
-  <link rel="stylesheet" href="/styles/markdown.css">
-  <link rel="stylesheet" href="/main.css">
-</head>
-<body>
-  <div id="app"></div>
-  <script type="module" src="/main.js"></script>
-</body>
-</html>`);
-
-await Bun.$`rm -rf dist/styles && cp -r src/client/styles dist/styles`;
-
-console.log(`Client build complete: ${result.outputs.length} files written to dist/`);
-
+console.log("Building CLI with esbuild...");
 const serverResult = await esbuild({
   entryPoints: ["./src/cli.ts"],
   bundle: true,
@@ -47,6 +17,9 @@ const serverResult = await esbuild({
   outfile: "./dist/cli.mjs",
   banner: { js: "#!/usr/bin/env node" },
   external: ["open"],
+  define: {
+    "process.env.MDB_VERSION": JSON.stringify(pkg.version),
+  },
   minify: false,
 });
 
@@ -58,4 +31,4 @@ if (serverResult.errors.length > 0) {
   process.exit(1);
 }
 
-console.log("Server build complete: dist/cli.mjs");
+console.log("Build complete: dist/client/ + dist/cli.mjs");

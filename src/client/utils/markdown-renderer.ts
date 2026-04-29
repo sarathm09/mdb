@@ -33,7 +33,7 @@ export async function renderMarkdown(md: string, dirPath: string): Promise<strin
   const rawHtml = marked.parse(normalized, { renderer }) as string;
   const sanitized = DOMPurify.sanitize(rawHtml, {
     ADD_TAGS: ['table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption', 'colgroup', 'col'],
-    ADD_ATTR: ['colspan', 'rowspan', 'scope', 'align'],
+    ADD_ATTR: ['colspan', 'rowspan', 'scope', 'align', 'width', 'height', 'style'],
   });
   return sanitized.replace(/<table>/g, '<div class="table-wrapper"><table>').replace(/<\/table>\n?/g, '</table></div>');
 }

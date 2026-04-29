@@ -9,6 +9,10 @@ export const rootName = writable<string>('');
 export const showHiddenFiles = writable<boolean>(localStorage.getItem('mb-show-hidden') === 'true');
 export const theme = writable<string>(localStorage.getItem('mb-theme') || 'one-dark');
 export const sidebarFontSize = writable<number>(parseInt(localStorage.getItem('mb-sidebar-font-size') || '14', 10));
+export const fontFamily = writable<string>(localStorage.getItem('mb-font-family') || 'system');
+export const contentFontSize = writable<number>(parseInt(localStorage.getItem('mb-content-font-size') || '15', 10));
+export const lineHeight = writable<number>(parseFloat(localStorage.getItem('mb-line-height') || '1.7'));
+export const contentMaxWidth = writable<number>(parseInt(localStorage.getItem('mb-content-max-width') || '900', 10));
 
 function encodeHash(dir: string, file: string | null): string {
   if (file) return '#/file/' + file;

@@ -1,10 +1,14 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach, vi } from "vitest";
 import path from "node:path";
 import { mkdtemp, rm, mkdir, writeFile as fsWriteFile, readFile as fsReadFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { createServer } from "node:http";
 import { Hono } from "hono";
 import { createFileRoutes } from "./files";
+
+vi.mock("node:child_process", () => ({
+  execFile: vi.fn((_cmd: string, _args: string[], cb: Function) => cb(null, "", "")),
+}));
 
 let rootDir: string;
 let app: Hono;
@@ -57,6 +61,25 @@ describe("GET /api/search", () => {
 
     const res2 = await req("/search?q=secret&showHidden=true");
     expect((await res2.json())).toHaveLength(1);
+  });
+
+  test("returns all file types when types=all", async () => {
+    await fsWriteFile(path.join(rootDir, "data.json"), "{}");
+    const res = await req("/search?q=data&types=all");
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data).toHaveLength(1);
+    expect(data[0].name).toBe("data.json");
+    expect(data[0].isMarkdown).toBe(false);
+  });
+
+  test("respects maxDepth parameter", async () => {
+    await mkdir(path.join(rootDir, "a", "b"), { recursive: true });
+    await fsWriteFile(path.join(rootDir, "a", "b", "deep.md"), "deep");
+    const res = await req("/search?q=deep&maxDepth=1");
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data).toHaveLength(0);
   });
 });
 
@@ -395,6 +418,14 @@ describe("GET /api/proxy-image", () => {
 });
 
 describe("POST /api/open-external", () => {
+  let mockExecFile: ReturnType<typeof vi.fn>;
+
+  beforeEach(async () => {
+    const cp = await import("node:child_process");
+    mockExecFile = cp.execFile as unknown as ReturnType<typeof vi.fn>;
+    mockExecFile.mockClear();
+  });
+
   test("returns 400 when path is missing", async () => {
     const res = await req("/open-external", {
       method: "POST",
@@ -404,6 +435,7 @@ describe("POST /api/open-external", () => {
     expect(res.status).toBe(400);
     const data = await res.json();
     expect(data.error).toBe("Missing path or action");
+    expect(mockExecFile).not.toHaveBeenCalled();
   });
 
   test("returns 400 when action is missing", async () => {
@@ -413,6 +445,7 @@ describe("POST /api/open-external", () => {
       body: JSON.stringify({ path: "." }),
     });
     expect(res.status).toBe(400);
+    expect(mockExecFile).not.toHaveBeenCalled();
   });
 
   test("returns 500 for path traversal", async () => {
@@ -424,6 +457,7 @@ describe("POST /api/open-external", () => {
     expect(res.status).toBe(500);
     const data = await res.json();
     expect(data.error).toContain("Path traversal");
+    expect(mockExecFile).not.toHaveBeenCalled();
   });
 
   test("opens directory in finder", async () => {
@@ -434,6 +468,7 @@ describe("POST /api/open-external", () => {
     });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ success: true });
+    expect(mockExecFile).toHaveBeenCalledWith("open", ["-R", rootDir], expect.any(Function));
   });
 
   test("opens directory in terminal", async () => {
@@ -444,6 +479,7 @@ describe("POST /api/open-external", () => {
     });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ success: true });
+    expect(mockExecFile).toHaveBeenCalledWith("open", ["-a", "Terminal", rootDir], expect.any(Function));
   });
 
   test("opens file in terminal resolves to parent directory", async () => {
@@ -454,6 +490,7 @@ describe("POST /api/open-external", () => {
       body: JSON.stringify({ path: "test.md", action: "terminal" }),
     });
     expect(res.status).toBe(200);
+    expect(mockExecFile).toHaveBeenCalledWith("open", ["-a", "Terminal", rootDir], expect.any(Function));
   });
 
   test("opens directory in terminal with custom app", async () => {
@@ -462,9 +499,9 @@ describe("POST /api/open-external", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path: ".", action: "terminal", app: "iTerm" }),
     });
-    // May fail if iTerm is not installed, which is fine - we just test the code path
-    const data = await res.json();
-    expect(typeof data).toBe("object");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ success: true });
+    expect(mockExecFile).toHaveBeenCalledWith("open", ["-a", "iTerm", rootDir], expect.any(Function));
   });
 
   test("opens file in default editor", async () => {
@@ -476,6 +513,7 @@ describe("POST /api/open-external", () => {
     });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ success: true });
+    expect(mockExecFile).toHaveBeenCalledWith("open", [path.join(rootDir, "edit.md")], expect.any(Function));
   });
 
   test("opens file in specified editor app", async () => {
@@ -487,5 +525,6 @@ describe("POST /api/open-external", () => {
     });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ success: true });
+    expect(mockExecFile).toHaveBeenCalledWith("open", ["-a", "TextEdit", path.join(rootDir, "edit2.md")], expect.any(Function));
   });
 });
