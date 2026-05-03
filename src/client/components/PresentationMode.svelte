@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { tick } from 'svelte';
+  import { tick, onDestroy } from 'svelte';
   import { fetchFile } from '../services/api';
+  import { wsClient } from '../services/websocket';
   import { currentPath } from '../stores/navigation';
   import { renderMarkdown, postProcessElement } from '../utils/markdown-renderer';
 
@@ -31,6 +32,58 @@
       initCalled = false;
     }
   });
+
+  $effect(() => {
+    if (!isOpen || !filePath) return;
+
+    wsClient.connect();
+    const unsubscribe = wsClient.onFileChanged(filePath, () => {
+      reloadSlides();
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  });
+
+  onDestroy(() => {
+    cleanup();
+  });
+
+  async function reloadSlides() {
+    if (!deck || !revealContainer) return;
+
+    try {
+      const file = await fetchFile(filePath);
+      const dirPath = filePath.includes('/') ? filePath.substring(0, filePath.lastIndexOf('/')) : $currentPath;
+
+      const slides = splitIntoSlides(file.content);
+      const newSlidesHtml = slides.length === 0
+        ? [await renderMarkdown(file.content, dirPath)]
+        : await Promise.all(slides.map((slide: string) => renderMarkdown(slide, dirPath)));
+
+      const savedState = deck.getState();
+
+      slidesHtml = newSlidesHtml;
+
+      await tick();
+      await new Promise(r => requestAnimationFrame(r));
+
+      splitOverflowingSlides(revealContainer);
+
+      if (typeof deck.sync === 'function') {
+        deck.sync();
+      } else if (typeof deck.layout === 'function') {
+        deck.layout();
+      }
+
+      deck.setState(savedState);
+
+      await postProcessElement(revealContainer);
+    } catch (err) {
+      console.error('Failed to reload presentation slides:', err);
+    }
+  }
 
   async function initPresentation() {
     ready = false;

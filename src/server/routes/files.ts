@@ -13,7 +13,7 @@ import {
   uploadFile,
 } from "../services/file-service";
 
-export function createFileRoutes(rootDir: string): Hono {
+export function createFileRoutes(rootDir: string, onFileChanged?: (relativePath: string) => void): Hono {
   const app = new Hono();
 
   app.get("/search", async (c) => {
@@ -64,6 +64,7 @@ export function createFileRoutes(rootDir: string): Hono {
         return c.json({ error: "Missing path or content in body" }, 400);
       }
       await writeFile(rootDir, body.path, body.content);
+      onFileChanged?.(body.path);
       return c.json({ success: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
@@ -118,7 +119,7 @@ export function createFileRoutes(rootDir: string): Hono {
     }
   });
 
-  const settingsPath = path.join(rootDir, ".@sarathm09/mdb.json");
+  const settingsPath = path.join(rootDir, ".mdb/settings.json");
 
   app.get("/settings", async (c) => {
     try {

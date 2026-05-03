@@ -4,6 +4,8 @@
   import { isEditing, content, originalContent, isDirty } from './stores/editor';
   import { fetchDirectory, saveFile, openExternal, getSettings, saveSettings as saveSettingsApi } from './services/api';
   import { isInputFocused } from './utils/keyboard';
+  import { wsClient } from './services/websocket';
+  import { comments, loadComments } from './stores/comments';
   import Sidebar from './components/Sidebar.svelte';
   import FileExplorer from './components/FileExplorer.svelte';
   import MarkdownPreview from './components/MarkdownPreview.svelte';
@@ -13,6 +15,7 @@
   import CommandPalette from './components/CommandPalette.svelte';
   import PresentationMode from './components/PresentationMode.svelte';
   import ExportMenu from './components/ExportMenu.svelte';
+  import CommentPane from './components/CommentPane.svelte';
 
   let shortcutsHelpOpen = $state(false);
   let isPresentationOpen = $state(false);
@@ -21,6 +24,31 @@
   let saving = $state(false);
   let sidebarWidth = $state(280);
   let isResizing = $state(false);
+  let commentPaneOpen = $state(false);
+  let claudeCliPath = $state('');
+  let pendingComment = $state<{ sourceLine: number | null; selectionText: string } | null>(null);
+  let activeCommentLine = $state<number | null>(null);
+  let activeCommentId = $state<string | null>(null);
+  let activeThreadId = $state<string | null>(null);
+  let _autoOpenedForFile = $state<string | null>(null);
+
+  $effect(() => {
+    const file = $selectedFile;
+    if (file && /\.(md|markdown)$/i.test(file)) loadComments(file);
+  });
+
+  $effect(() => {
+    if ($selectedFile && $comments.length > 0 && _autoOpenedForFile !== $selectedFile) {
+      _autoOpenedForFile = $selectedFile;
+      commentPaneOpen = true;
+    }
+  });
+
+  let commentAnnotations = $derived(
+    $comments
+      .filter(c => c.sourceLine !== null && !c.parentId)
+      .map(c => ({ id: c.id, sourceLine: c.sourceLine!, selectionText: c.selectionText }))
+  );
 
   function startResize(e: MouseEvent) {
     e.preventDefault();
@@ -47,6 +75,23 @@
   let terminalApp = $state('Terminal');
   let editorApp = $state('');
 
+  function handleAddCommentFromPreview(sourceLine: number | null, selectionText: string) {
+    commentPaneOpen = true;
+    pendingComment = { sourceLine, selectionText };
+  }
+
+  function handleLineClick(commentId: string, sourceLine: number) {
+    activeCommentId = null;
+    activeCommentLine = null;
+    setTimeout(() => { activeCommentId = commentId; activeCommentLine = sourceLine; }, 0);
+  }
+
+  function handleMarkClick(commentId: string) {
+    activeThreadId = null;
+    commentPaneOpen = true;
+    setTimeout(() => { activeThreadId = commentId; }, 0);
+  }
+
   function handleOpenExternal(action: 'terminal' | 'finder' | 'editor') {
     const target = $selectedFile || $currentPath;
     const app = action === 'terminal' ? terminalApp : action === 'editor' ? editorApp : undefined;
@@ -60,6 +105,7 @@
   let settingsShowHidden = $state(false);
   let settingsTheme = $state('one-dark');
   let settingsFontSize = $state(14);
+  let settingsClaudeCliPath = $state('');
 
   function openSettings() {
     settingsTerminal = terminalApp;
@@ -67,12 +113,14 @@
     settingsShowHidden = $showHiddenFiles;
     settingsTheme = $theme;
     settingsFontSize = $sidebarFontSize;
+    settingsClaudeCliPath = claudeCliPath;
     showSettings = true;
   }
 
   async function handleSaveSettings() {
     terminalApp = settingsTerminal.trim();
     editorApp = settingsEditor.trim();
+    claudeCliPath = settingsClaudeCliPath.trim();
     const hiddenChanged = settingsShowHidden !== $showHiddenFiles;
     $showHiddenFiles = settingsShowHidden;
     $theme = settingsTheme;
@@ -81,7 +129,7 @@
     localStorage.setItem('mb-sidebar-font-size', String(settingsFontSize));
     document.documentElement.className = settingsTheme === 'one-dark' ? '' : `theme-${settingsTheme}`;
     showSettings = false;
-    await saveSettingsApi({ terminalApp, editorApp, showHidden: $showHiddenFiles, theme: $theme, sidebarFontSize: $sidebarFontSize }).catch(() => {});
+    await saveSettingsApi({ terminalApp, editorApp, showHidden: $showHiddenFiles, theme: $theme, sidebarFontSize: $sidebarFontSize, claudeCliPath }).catch(() => {});
     if (hiddenChanged) {
       const listing = await fetchDirectory($currentPath, $showHiddenFiles);
       $entries = listing.entries;
@@ -101,6 +149,8 @@
   }
 
   onMount(async () => {
+    wsClient.connect();
+
     const settings = await getSettings().catch(() => ({}));
     if (settings.terminalApp) terminalApp = settings.terminalApp as string;
     if (settings.editorApp) editorApp = settings.editorApp as string;
@@ -113,6 +163,8 @@
       $sidebarFontSize = settings.sidebarFontSize as number;
       localStorage.setItem('mb-sidebar-font-size', String($sidebarFontSize));
     }
+    const savedCli = settings.claudeCliPath as string | undefined;
+    claudeCliPath = savedCli || '';
     document.documentElement.className = $theme === 'one-dark' ? '' : `theme-${$theme}`;
 
     const { dir } = initFromUrl();
@@ -227,6 +279,9 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;"><polygon points="5 3 19 12 5 21 5 3"/></svg>Present
         </button>
         <ExportMenu filePath={$selectedFile} bind:isOpen={exportMenuOpen} />
+        <button class="topbar-btn" class:topbar-btn--active={commentPaneOpen} onclick={() => commentPaneOpen = !commentPaneOpen} title="Toggle comments">
+          Comments
+        </button>
       {/if}
       {#if $selectedFile || $currentPath}
         <div class="topbar-sep"></div>
@@ -259,11 +314,34 @@
       {#if $selectedFile && $isEditing}
         <MarkdownEditor filePath={$selectedFile} />
       {:else if $selectedFile && isMarkdownFile}
-        <MarkdownPreview filePath={$selectedFile} />
+        <div class="preview-with-comments">
+          <MarkdownPreview
+            filePath={$selectedFile}
+            onAddComment={handleAddCommentFromPreview}
+            onMarkClick={handleMarkClick}
+            commentPaneOpen={commentPaneOpen}
+            commentAnnotations={commentAnnotations}
+            activeCommentLine={activeCommentLine}
+            activeCommentId={activeCommentId}
+          />
+          {#if commentPaneOpen}
+            <CommentPane
+              filePath={$selectedFile}
+              pendingComment={pendingComment}
+              onPendingCommentConsumed={() => { pendingComment = null; }}
+              onLineClick={handleLineClick}
+              activeThreadId={activeThreadId}
+            />
+          {/if}
+        </div>
       {:else if $selectedFile}
-        <FilePreview filePath={$selectedFile} />
+        <div class="content-scroll">
+          <FilePreview filePath={$selectedFile} />
+        </div>
       {:else}
-        <FileExplorer />
+        <div class="content-scroll">
+          <FileExplorer />
+        </div>
       {/if}
     </div>
   </div>
@@ -303,6 +381,11 @@
         <label class="settings-label" for="editor-app">External Editor</label>
         <input id="editor-app" class="settings-input" type="text" bind:value={settingsEditor} placeholder="System default" />
         <span class="settings-hint">e.g. Visual Studio Code, Sublime Text, Zed</span>
+      </div>
+      <div class="settings-field">
+        <label class="settings-label" for="claude-cli-path">Claude CLI path</label>
+        <input id="claude-cli-path" class="settings-input" type="text" bind:value={settingsClaudeCliPath} placeholder="claude (uses PATH)" />
+        <span class="settings-hint">Path to the Claude CLI binary for AI review</span>
       </div>
       <div class="settings-field">
         <label class="settings-toggle">
@@ -520,5 +603,24 @@
   .no-select {
     user-select: none;
     pointer-events: none;
+  }
+
+  .topbar-btn--active {
+    background: var(--accent-blue);
+    color: #fff;
+    border-color: var(--accent-blue);
+  }
+
+  .topbar-btn--active:hover:not(:disabled) {
+    opacity: 0.88;
+    background: var(--accent-blue);
+    color: #fff;
+  }
+
+  .preview-with-comments {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    min-height: 0;
   }
 </style>

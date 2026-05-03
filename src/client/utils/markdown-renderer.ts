@@ -19,7 +19,7 @@ export function createMarkedInstance(): Marked {
   return marked;
 }
 
-export async function renderMarkdown(md: string, dirPath: string): Promise<string> {
+export async function renderMarkdown(md: string, dirPath: string, annotateLines = false): Promise<string> {
   const normalized = md.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\t/g, '    ');
   const marked = createMarkedInstance();
   const renderer = new marked.Renderer();
@@ -30,10 +30,55 @@ export async function renderMarkdown(md: string, dirPath: string): Promise<strin
     }
     return `<img src="${href}" alt="${text || ''}" title="${title || ''}" />`;
   };
+
+  if (annotateLines) {
+    let currentLine = 1;
+    const origHeading = renderer.heading.bind(renderer);
+    const origParagraph = renderer.paragraph.bind(renderer);
+    const origCode = renderer.code.bind(renderer);
+    const origBlockquote = renderer.blockquote.bind(renderer);
+    const origList = renderer.list.bind(renderer);
+
+    renderer.heading = function(token: Parameters<typeof origHeading>[0]) {
+      const line = currentLine;
+      currentLine += (token.raw.match(/\n/g) || []).length + 1;
+      const result = origHeading(token) as string;
+      return result.replace(/^<h(\d)/, `<h$1 data-source-line="${line}"`);
+    };
+
+    renderer.paragraph = function(token: Parameters<typeof origParagraph>[0]) {
+      const line = currentLine;
+      currentLine += (token.raw.match(/\n/g) || []).length + 1;
+      const result = origParagraph(token) as string;
+      return result.replace(/^<p/, `<p data-source-line="${line}"`);
+    };
+
+    renderer.code = function(token: Parameters<typeof origCode>[0]) {
+      const line = currentLine;
+      currentLine += (token.raw.match(/\n/g) || []).length + 1;
+      const result = origCode(token) as string;
+      return result.replace(/^<pre/, `<pre data-source-line="${line}"`);
+    };
+
+    renderer.blockquote = function(token: Parameters<typeof origBlockquote>[0]) {
+      const line = currentLine;
+      currentLine += (token.raw.match(/\n/g) || []).length + 1;
+      const result = origBlockquote(token) as string;
+      return result.replace(/^<blockquote/, `<blockquote data-source-line="${line}"`);
+    };
+
+    renderer.list = function(token: Parameters<typeof origList>[0]) {
+      const line = currentLine;
+      currentLine += (token.raw.match(/\n/g) || []).length + 1;
+      const result = origList(token) as string;
+      return result.replace(/^<[ou]l/, `$& data-source-line="${line}"`);
+    };
+  }
+
   const rawHtml = marked.parse(normalized, { renderer }) as string;
   const sanitized = DOMPurify.sanitize(rawHtml, {
     ADD_TAGS: ['table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption', 'colgroup', 'col'],
-    ADD_ATTR: ['colspan', 'rowspan', 'scope', 'align'],
+    ADD_ATTR: ['colspan', 'rowspan', 'scope', 'align', 'data-source-line'],
   });
   return sanitized.replace(/<table>/g, '<div class="table-wrapper"><table>').replace(/<\/table>\n?/g, '</table></div>');
 }
