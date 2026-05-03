@@ -1,3 +1,4 @@
+import { spawn } from 'node:child_process';
 import type { CommentsDB } from '../db/comments-db';
 import type { WSManager } from '../ws-manager';
 import type { AIReviewResponse } from '../../shared/types';
@@ -59,6 +60,21 @@ function parseAIResponse(raw: string): AIReviewResponse {
   return parsed as AIReviewResponse;
 }
 
+function runCommand(command: string, args: string[]): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args);
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString(); });
+    child.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
+    child.on('close', (code) => {
+      if (code === 0) resolve(stdout);
+      else reject(new Error(stderr.trim() || `Process exited with code ${code}`));
+    });
+    child.on('error', reject);
+  });
+}
+
 export async function applyAIResponse(
   rootDir: string,
   filePath: string,
@@ -104,7 +120,7 @@ export async function startAIReview(
       const prompt = buildPrompt(filePath, fileData.content, comments);
 
       const cliPath = claudeCliPath || 'claude';
-      const result = await Bun.$`${cliPath} --print ${prompt}`.text();
+      const result = await runCommand(cliPath, ['--print', prompt]);
       const response = parseAIResponse(result);
       await applyAIResponse(rootDir, filePath, response, db, wsManager);
 

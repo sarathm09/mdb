@@ -1,39 +1,30 @@
-import type { ServerWebSocket } from 'bun';
+import type { WebSocket } from 'ws';
 import type { WSMessage } from '../shared/types';
 
-interface WSData {
-  subscribedFiles: Set<string>;
-}
-
 export class WSManager {
-  private clients = new Map<ServerWebSocket<WSData>, Set<string>>();
+  private clients = new Map<WebSocket, Set<string>>();
 
-  open(ws: ServerWebSocket<WSData>): void {
-    ws.data = { subscribedFiles: new Set() };
-    this.clients.set(ws, ws.data.subscribedFiles);
-  }
-
-  handleMessage(ws: ServerWebSocket<WSData>, msg: string | Buffer): void {
-    try {
-      const data = JSON.parse(typeof msg === 'string' ? msg : msg.toString());
-      if (data.type === 'subscribe' && typeof data.filePath === 'string') {
-        this.clients.get(ws)?.add(data.filePath);
-      } else if (data.type === 'unsubscribe' && typeof data.filePath === 'string') {
-        this.clients.get(ws)?.delete(data.filePath);
-      }
-    } catch {}
-  }
-
-  close(ws: ServerWebSocket<WSData>): void {
-    this.clients.delete(ws);
+  add(ws: WebSocket): void {
+    const files = new Set<string>();
+    this.clients.set(ws, files);
+    ws.on('message', (msg: Buffer | string) => {
+      try {
+        const data = JSON.parse(typeof msg === 'string' ? msg : msg.toString());
+        if (data.type === 'subscribe' && typeof data.filePath === 'string') {
+          files.add(data.filePath);
+        } else if (data.type === 'unsubscribe' && typeof data.filePath === 'string') {
+          files.delete(data.filePath);
+        }
+      } catch {}
+    });
+    ws.on('close', () => this.clients.delete(ws));
   }
 
   broadcast(message: WSMessage): void {
     const msgStr = JSON.stringify(message);
     for (const [ws, files] of this.clients) {
+      if (ws.readyState !== 1 /* OPEN */) continue;
       if ('filePath' in message && files.has(message.filePath)) {
-        try { ws.send(msgStr); } catch {}
-      } else if (message.type === 'ai-status') {
         try { ws.send(msgStr); } catch {}
       }
     }
@@ -42,6 +33,7 @@ export class WSManager {
   broadcastToAll(message: WSMessage): void {
     const msgStr = JSON.stringify(message);
     for (const [ws] of this.clients) {
+      if (ws.readyState !== 1 /* OPEN */) continue;
       try { ws.send(msgStr); } catch {}
     }
   }

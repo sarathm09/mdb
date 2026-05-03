@@ -1,17 +1,17 @@
-import { Database } from 'bun:sqlite';
+import Database from 'better-sqlite3';
 import path from 'node:path';
 import { mkdirSync } from 'node:fs';
 import type { Comment, CreateCommentRequest } from '../../shared/types';
 
 export class CommentsDB {
-  private db: Database;
+  private db: Database.Database;
 
   constructor(rootDir: string) {
     const dir = path.join(rootDir, '.mdb');
     try { mkdirSync(dir, { recursive: true }); } catch {}
     const dbPath = path.join(dir, 'comments.db');
     this.db = new Database(dbPath);
-    this.db.exec('PRAGMA journal_mode=WAL;');
+    this.db.pragma('journal_mode = WAL');
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS comments (
         id TEXT PRIMARY KEY,
@@ -45,14 +45,14 @@ export class CommentsDB {
 
   getByFile(filePath: string): Comment[] {
     const rows = this.db
-      .query('SELECT * FROM comments WHERE file_path = ? ORDER BY created_at ASC')
+      .prepare('SELECT * FROM comments WHERE file_path = ? ORDER BY created_at ASC')
       .all(filePath) as Record<string, unknown>[];
     return rows.map(row => this.rowToComment(row));
   }
 
   getById(id: string): Comment | null {
     const row = this.db
-      .query('SELECT * FROM comments WHERE id = ?')
+      .prepare('SELECT * FROM comments WHERE id = ?')
       .get(id) as Record<string, unknown> | null;
     return row ? this.rowToComment(row) : null;
   }
@@ -60,31 +60,30 @@ export class CommentsDB {
   create(data: CreateCommentRequest & { author?: 'user' | 'ai' }): Comment {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
-    this.db.run(
-      'INSERT INTO comments (id, file_path, parent_id, author, body, source_line, selection_text, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [
-        id,
-        data.filePath,
-        data.parentId ?? null,
-        data.author ?? 'user',
-        data.body,
-        data.sourceLine ?? null,
-        data.selectionText ?? null,
-        now,
-        now,
-      ],
+    this.db.prepare(
+      'INSERT INTO comments (id, file_path, parent_id, author, body, source_line, selection_text, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    ).run(
+      id,
+      data.filePath,
+      data.parentId ?? null,
+      data.author ?? 'user',
+      data.body,
+      data.sourceLine ?? null,
+      data.selectionText ?? null,
+      now,
+      now,
     );
     return this.getById(id)!;
   }
 
   update(id: string, body: string): Comment | null {
     const now = new Date().toISOString();
-    this.db.run('UPDATE comments SET body = ?, updated_at = ? WHERE id = ?', [body, now, id]);
+    this.db.prepare('UPDATE comments SET body = ?, updated_at = ? WHERE id = ?').run(body, now, id);
     return this.getById(id);
   }
 
   delete(id: string): void {
-    this.db.run('DELETE FROM comments WHERE id = ?', [id]);
+    this.db.prepare('DELETE FROM comments WHERE id = ?').run(id);
   }
 
   close(): void {

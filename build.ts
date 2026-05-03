@@ -46,14 +46,14 @@ const serverResult = await esbuild({
   format: "esm",
   outfile: "./dist/cli.mjs",
   banner: { js: "#!/usr/bin/env node" },
-  external: ["open"],
+  external: ["open", "better-sqlite3", "ws"],
   minify: false,
 });
 
 if (serverResult.errors.length > 0) {
   console.error("Server build failed:");
   for (const err of serverResult.errors) {
-    console.error(err);
+    console.error(err.text);
   }
   process.exit(1);
 }
