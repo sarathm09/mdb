@@ -1,7 +1,7 @@
 import path from "node:path";
 import { readFile as fsReadFile, writeFile as fsWriteFile, readdir, stat, access, mkdir } from "node:fs/promises";
 import { createReadStream } from "node:fs";
-import type { DirectoryListing, FileContent, FileEntry } from "../../shared/types";
+import { COMMENT_SIDECAR_SUFFIX, type DirectoryListing, type FileContent, type FileEntry } from "../../shared/types";
 
 export function resolveAndValidate(rootDir: string, relativePath: string): string {
   const resolved = path.resolve(rootDir, relativePath);
@@ -18,7 +18,8 @@ export async function listDirectory(
 ): Promise<DirectoryListing> {
   const dirPath = resolveAndValidate(rootDir, relativePath);
   const allEntries = await readdir(dirPath);
-  const entries = showHidden ? allEntries : allEntries.filter((name) => !name.startsWith("."));
+  const visibleEntries = allEntries.filter((name) => !name.endsWith(COMMENT_SIDECAR_SUFFIX));
+  const entries = showHidden ? visibleEntries : visibleEntries.filter((name) => !name.startsWith("."));
 
   const items = await Promise.all(
     entries.map(async (name) => {
@@ -45,6 +46,8 @@ export async function listDirectory(
 
   return {
     path: relativePath,
+    rootName: path.basename(path.resolve(rootDir)),
+    rootPath: path.resolve(rootDir),
     entries: items,
   };
 }
@@ -82,9 +85,10 @@ export async function createFile(
 export async function searchFiles(
   rootDir: string,
   query: string,
-  maxResults: number = 20,
-  maxDepth: number = 10,
+  maxResults: number = 50,
+  maxDepth: number = 100,
   showHidden: boolean = false,
+  allFileTypes: boolean = false,
 ): Promise<FileEntry[]> {
   const results: FileEntry[] = [];
   const lowerQuery = query.toLowerCase();
@@ -99,7 +103,7 @@ export async function searchFiles(
     }
     for (const name of dirEntries) {
       if (results.length >= maxResults) break;
-      if ((!showHidden && name.startsWith(".")) || name === "node_modules") continue;
+      if ((!showHidden && name.startsWith(".")) || name === "node_modules" || name.endsWith(COMMENT_SIDECAR_SUFFIX)) continue;
       const fullPath = path.join(dir, name);
       const info = await stat(fullPath).catch(() => null);
       if (!info) continue;
@@ -107,14 +111,14 @@ export async function searchFiles(
         await walk(fullPath, depth + 1);
       } else {
         const ext = path.extname(name).toLowerCase();
-        if (ext !== ".md" && ext !== ".markdown") continue;
+        if (!allFileTypes && ext !== ".md" && ext !== ".markdown") continue;
         const relPath = path.relative(rootDir, fullPath);
         if (!relPath.toLowerCase().includes(lowerQuery)) continue;
         results.push({
           name,
           path: relPath,
           isDirectory: false,
-          isMarkdown: true,
+          isMarkdown: ext === ".md" || ext === ".markdown",
           size: info.size,
           modifiedAt: info.mtime.toISOString(),
         });

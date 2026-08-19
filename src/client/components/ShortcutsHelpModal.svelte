@@ -6,7 +6,7 @@
     onClose: () => void;
   } = $props();
 
-  const categories = ['General', 'Editor', 'Explorer'] as const;
+  const categories = ['General', 'Review', 'Editor', 'Explorer'] as const;
 
   function getShortcutsByCategory(category: string): ShortcutInfo[] {
     return SHORTCUTS.filter(s => s.category === category);
@@ -67,7 +67,7 @@
 
   .modal-card {
     background: var(--bg-secondary);
-    border: 1px solid var(--border);
+    border: 0;
     border-radius: 12px;
     width: 520px;
     max-width: 90vw;

@@ -16,6 +16,18 @@
   --border: #3e4451;
   --scrollbar: #4b5263;
   --scrollbar-hover: #636d83;
+  --surface-raised: rgba(24, 28, 35, 0.84);
+  --surface-raised-hover: rgba(34, 39, 48, 0.92);
+  --control-raised: rgba(29, 34, 42, 0.9);
+  --surface-shadow: 0 0 9px rgba(3, 5, 9, 0.78), 0 3px 6px rgba(3, 5, 9, 0.7);
+  --control-shadow: 0 2px 5px rgba(3, 5, 9, 0.72), 0 1px 2px rgba(3, 5, 9, 0.82);
+  --input-shadow: inset 0 2px 5px rgba(1, 3, 7, 0.62), inset 0 0 0 1px rgba(1, 3, 7, 0.24);
+  --text-shadow: 0 1px 2px rgba(0, 0, 0, .58);
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --font-family-mono: 'SF Mono', 'Fira Code', Menlo, Consolas, monospace;
+  --font-size-content: 15px;
+  --line-height-content: 1.7;
+  --content-max-width: 900px;
 }
 
 *,
@@ -27,9 +39,9 @@
 }
 
 body {
-  background-color: var(--bg-primary);
+  background: var(--bg-primary);
   color: var(--text-primary);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-family: var(--font-family);
   height: 100vh;
   overflow: hidden;
 }
@@ -62,18 +74,35 @@ html {
 }
 
 .app {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   height: 100vh;
+  background:
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 140 140' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='5' seed='11' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='linear' slope='1.9' intercept='-.45'/%3E%3CfeFuncG type='linear' slope='1.9' intercept='-.45'/%3E%3CfeFuncB type='linear' slope='1.9' intercept='-.45'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.38'/%3E%3C/svg%3E"),
+    radial-gradient(circle at 8% -12%, color-mix(in srgb, var(--accent-cyan) 16%, transparent) 0, transparent 43%),
+    radial-gradient(circle at 96% 108%, color-mix(in srgb, var(--accent-blue) 18%, transparent) 0, transparent 46%),
+    linear-gradient(145deg, color-mix(in srgb, var(--bg-primary) 70%, var(--bg-tertiary)), var(--bg-primary));
+  background-size: 140px 140px, auto, auto, auto;
+  background-blend-mode: overlay, normal, normal, normal;
+}
+
+.topbar,
+.main {
+  position: relative;
+  z-index: 1;
 }
 
 .topbar {
-  background-color: var(--bg-secondary);
+  background: transparent;
   display: flex;
   flex-direction: row;
   align-items: center;
   padding: 8px 16px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0;
+  z-index: 20;
+  overflow: visible;
 }
 
 .main {
@@ -84,9 +113,9 @@ html {
 }
 
 .sidebar-panel {
-  background-color: var(--bg-secondary);
+  background: transparent;
   overflow-y: auto;
-  border-right: 1px solid var(--border);
+  border-right: 0;
   flex-shrink: 0;
   transition: width 0.2s ease;
 }
@@ -105,6 +134,7 @@ html {
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
+  padding: 14px;
 }
 
 .content-scroll {
@@ -116,10 +146,10 @@ html {
 
 button {
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   padding: 6px 12px;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
   font-family: inherit;
   font-size: inherit;
 }
@@ -127,6 +157,7 @@ button {
 .btn-primary {
   background-color: var(--accent-blue);
   color: #ffffff;
+  box-shadow: var(--control-shadow);
 }
 
 .btn-primary:hover {
@@ -150,14 +181,29 @@ button {
 
 input,
 textarea {
-  background-color: var(--bg-input);
-  border: 1px solid var(--border);
+  background-color: var(--control-raised);
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  backdrop-filter: blur(10px);
   color: var(--text-primary);
-  border-radius: 4px;
+  border-radius: 10px;
   padding: 6px 12px;
   font-family: inherit;
   font-size: inherit;
   outline: none;
+  box-shadow: var(--input-shadow);
+}
+
+input[type='range'],
+input[type='checkbox'] {
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.theme-github-light .app {
+  background:
+    radial-gradient(circle at 8% -12%, rgba(23, 105, 170, 0.09), transparent 43%),
+    linear-gradient(145deg, #eef3f8, #e7edf3);
+  background-blend-mode: normal;
 }
 
 input:focus,
@@ -181,7 +227,7 @@ textarea:focus {
   .resize-handle,
   .export-menu,
   .palette-backdrop,
-  .settings-backdrop {
+  .settings-page {
     display: none !important;
   }
 

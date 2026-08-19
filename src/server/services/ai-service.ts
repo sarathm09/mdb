@@ -1,18 +1,33 @@
 import { spawn } from 'node:child_process';
-import type { CommentsDB } from '../db/comments-db';
+import type { CommentsStore } from './comments-store';
 import type { WSManager } from '../ws-manager';
-import type { AIReviewResponse } from '../../shared/types';
+import type { AIHarness, AIReviewResponse } from '../../shared/types';
 import { readFile, writeFile } from './file-service';
 
 export interface AIJob {
   jobId: string;
   status: 'pending' | 'running' | 'done' | 'error';
   error?: string;
+  harness: AIHarness;
+  model?: string;
+  agent?: string;
 }
 
 const jobs = new Map<string, AIJob>();
 
-function buildPrompt(filePath: string, content: string, comments: ReturnType<CommentsDB['getByFile']>): string {
+export interface AIReviewConfig {
+  harness: AIHarness;
+  model?: string;
+  agent?: string;
+  executablePath?: string;
+}
+
+interface AIInvocation {
+  command: string;
+  args: string[];
+}
+
+function buildPrompt(filePath: string, content: string, comments: ReturnType<CommentsStore['getByFile']>): string {
   return `You are reviewing a Markdown file. Below is the file path, content, and all open comments with their line references.
 
 File path: ${filePath}
@@ -47,10 +62,11 @@ The JSON must conform exactly to this schema:
 \`\`\``;
 }
 
-function parseAIResponse(raw: string): AIReviewResponse {
+export function parseAIResponse(raw: string): AIReviewResponse {
   const match = raw.match(/```json\s*([\s\S]*?)```/);
-  if (!match) throw new Error('No JSON block found in AI response');
-  const parsed = JSON.parse(match[1].trim());
+  const json = match?.[1] ?? raw.trim();
+  if (!json) throw new Error('No JSON found in AI response');
+  const parsed = JSON.parse(json.trim());
   if (typeof parsed.fileContent !== 'string' && parsed.fileContent !== null) {
     throw new Error('Invalid fileContent in AI response');
   }
@@ -60,9 +76,28 @@ function parseAIResponse(raw: string): AIReviewResponse {
   return parsed as AIReviewResponse;
 }
 
-function runCommand(command: string, args: string[]): Promise<string> {
+export function buildAIInvocation(config: AIReviewConfig, prompt: string, rootDir: string): AIInvocation {
+  const command = config.executablePath?.trim() || config.harness;
+  const modelArgs = config.model?.trim() ? ['--model', config.model.trim()] : [];
+
+  if (config.harness === 'claude') {
+    const agentArgs = config.agent?.trim() ? ['--agent', config.agent.trim()] : [];
+    return { command, args: ['--print', '--output-format', 'text', ...modelArgs, ...agentArgs, prompt] };
+  }
+  if (config.harness === 'codex') {
+    const profileArgs = config.agent?.trim() ? ['--profile', config.agent.trim()] : [];
+    return {
+      command,
+      args: ['exec', '--ephemeral', '--sandbox', 'read-only', '--skip-git-repo-check', '--cd', rootDir, ...modelArgs, ...profileArgs, prompt],
+    };
+  }
+  const agentArgs = config.agent?.trim() ? ['--agent', config.agent.trim()] : [];
+  return { command, args: ['run', '--format', 'default', '--dir', rootDir, ...modelArgs, ...agentArgs, prompt] };
+}
+
+function runCommand(command: string, args: string[], cwd: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args);
+    const child = spawn(command, args, { cwd });
     let stdout = '';
     let stderr = '';
     child.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString(); });
@@ -79,7 +114,7 @@ export async function applyAIResponse(
   rootDir: string,
   filePath: string,
   response: AIReviewResponse,
-  db: CommentsDB,
+  db: CommentsStore,
   wsManager: WSManager,
 ): Promise<void> {
   if (response.fileContent !== null) {
@@ -102,12 +137,18 @@ export async function applyAIResponse(
 export async function startAIReview(
   filePath: string,
   rootDir: string,
-  claudeCliPath: string,
-  db: CommentsDB,
+  config: AIReviewConfig,
+  db: CommentsStore,
   wsManager: WSManager,
 ): Promise<string> {
   const jobId = crypto.randomUUID();
-  const job: AIJob = { jobId, status: 'pending' };
+  const job: AIJob = {
+    jobId,
+    status: 'pending',
+    harness: config.harness,
+    model: config.model,
+    agent: config.agent,
+  };
   jobs.set(jobId, job);
 
   (async () => {
@@ -119,8 +160,8 @@ export async function startAIReview(
       const comments = db.getByFile(filePath);
       const prompt = buildPrompt(filePath, fileData.content, comments);
 
-      const cliPath = claudeCliPath || 'claude';
-      const result = await runCommand(cliPath, ['--print', prompt]);
+      const invocation = buildAIInvocation(config, prompt, rootDir);
+      const result = await runCommand(invocation.command, invocation.args, rootDir);
       const response = parseAIResponse(result);
       await applyAIResponse(rootDir, filePath, response, db, wsManager);
 

@@ -1,9 +1,13 @@
 import { Hono } from 'hono';
-import type { CommentsDB } from '../db/comments-db';
+import type { CommentsStore } from '../services/comments-store';
 import { readFile } from '../services/file-service';
-import type { CreateCommentRequest } from '../../shared/types';
+import type { CreateCommentRequest, UpdateCommentRequest } from '../../shared/types';
 
-export function createCommentRoutes(rootDir: string, db: CommentsDB): Hono {
+export function createCommentRoutes(
+  rootDir: string,
+  db: CommentsStore,
+  onCommentsChanged?: (filePath: string) => void,
+): Hono {
   const app = new Hono();
 
   app.get('/comments', (c) => {
@@ -40,6 +44,7 @@ export function createCommentRoutes(rootDir: string, db: CommentsDB): Hono {
         return c.json({ error: 'Missing filePath or body' }, 400);
       }
       const comment = db.create(body);
+      onCommentsChanged?.(body.filePath);
       return c.json(comment, 201);
     } catch (err) {
       return c.json({ error: err instanceof Error ? err.message : 'Unknown error' }, 500);
@@ -49,10 +54,13 @@ export function createCommentRoutes(rootDir: string, db: CommentsDB): Hono {
   app.put('/comments/:id', async (c) => {
     try {
       const id = c.req.param('id');
-      const body = await c.req.json<{ body: string }>();
-      if (!body.body?.trim()) return c.json({ error: 'Missing body' }, 400);
-      const comment = db.update(id, body.body);
+      const body = await c.req.json<UpdateCommentRequest>();
+      if (body.body === undefined && body.blocking === undefined) {
+        return c.json({ error: 'Missing body or blocking state' }, 400);
+      }
+      const comment = db.update(id, body);
       if (!comment) return c.json({ error: 'Comment not found' }, 404);
+      onCommentsChanged?.(comment.filePath);
       return c.json(comment);
     } catch (err) {
       return c.json({ error: err instanceof Error ? err.message : 'Unknown error' }, 500);
@@ -62,9 +70,11 @@ export function createCommentRoutes(rootDir: string, db: CommentsDB): Hono {
   app.delete('/comments/:id', (c) => {
     try {
       const id = c.req.param('id');
-      const existing = db.getById(id);
+      const filePath = c.req.query('path');
+      const existing = db.getById(id, filePath);
       if (!existing) return c.json({ error: 'Comment not found' }, 404);
-      db.delete(id);
+      db.delete(id, filePath);
+      onCommentsChanged?.(existing.filePath);
       return c.json({ success: true });
     } catch (err) {
       return c.json({ error: err instanceof Error ? err.message : 'Unknown error' }, 500);

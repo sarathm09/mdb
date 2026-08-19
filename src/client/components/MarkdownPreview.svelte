@@ -11,11 +11,13 @@
   interface CommentAnnotation {
     id: string;
     sourceLine: number;
+    sourceEndLine: number | null;
     selectionText: string | null;
   }
 
   let {
     filePath,
+    liveContent = undefined,
     onAddComment = undefined,
     onMarkClick = undefined,
     commentPaneOpen = false,
@@ -24,7 +26,8 @@
     activeCommentId = null,
   }: {
     filePath: string;
-    onAddComment?: ((sourceLine: number | null, selectionText: string) => void) | undefined;
+    liveContent?: string | undefined;
+    onAddComment?: ((sourceLine: number | null, sourceEndLine: number | null, selectionText: string) => void) | undefined;
     onMarkClick?: ((commentId: string) => void) | undefined;
     commentPaneOpen?: boolean;
     commentAnnotations?: CommentAnnotation[];
@@ -34,6 +37,7 @@
 
   interface SelectionPopover {
     sourceLine: number | null;
+    sourceEndLine: number | null;
     selectionText: string;
     x: number; // cursor clientX
     y: number; // cursor clientY
@@ -46,8 +50,23 @@
   let selectionPopover = $state<SelectionPopover | null>(null);
 
   $effect(() => {
-    loadFile(filePath);
+    if (liveContent === undefined) loadFile(filePath);
   });
+
+  $effect(() => {
+    if (liveContent === undefined) return;
+    void renderLiveContent(liveContent, filePath);
+  });
+
+  async function renderLiveContent(markdown: string, path: string) {
+    loading = true;
+    const { frontmatter: fm, body } = parseFrontmatter(markdown);
+    frontmatter = fm;
+    const dirPath = path.includes('/') ? path.substring(0, path.lastIndexOf('/')) : $currentPath;
+    htmlContent = await renderMarkdown(body, dirPath, true);
+    $renderedHtml = htmlContent;
+    loading = false;
+  }
 
   async function loadFile(path: string) {
     loading = true;
@@ -130,11 +149,17 @@
       const el = previewEl.querySelector(`[data-source-line="${ann.sourceLine}"]`) as HTMLElement | null;
       if (!el) continue;
       if (ann.selectionText) {
-        if (!highlightTextInElement(el, ann.selectionText, ann.id)) {
-          el.classList.add('commented-line');
-        }
+        highlightTextInElement(el, ann.selectionText, ann.id);
       } else {
-        el.classList.add('commented-line');
+        markCommentedRange(ann.sourceLine, ann.sourceEndLine);
+      }
+    }
+
+    function markCommentedRange(startLine: number, endLine: number | null) {
+      const end = endLine ?? startLine;
+      for (const candidate of previewEl!.querySelectorAll('[data-source-line]')) {
+        const line = Number((candidate as HTMLElement).dataset.sourceLine);
+        if (line >= startLine && line <= end) candidate.classList.add('commented-line');
       }
     }
   });
@@ -202,29 +227,71 @@
   });
 
   function handleTextSelection(e: MouseEvent) {
+    if (e.button !== 0) return;
+    showCommentMenu(e, false);
+  }
+
+  function handleContextMenu(e: MouseEvent) {
+    if (showCommentMenu(e, true)) e.preventDefault();
+  }
+
+  function closestSourceElement(node: Node | null): HTMLElement | null {
+    const element = node instanceof HTMLElement ? node : node?.parentElement;
+    return element?.closest('[data-source-line]') as HTMLElement | null;
+  }
+
+  function showCommentMenu(e: MouseEvent, allowBlockComment: boolean): boolean {
     const sel = window.getSelection();
     if (!sel || sel.isCollapsed || !sel.toString().trim()) {
-      selectionPopover = null;
-      return;
+      if (!allowBlockComment) {
+        selectionPopover = null;
+        return false;
+      }
+      const lineElement = (e.target as HTMLElement).closest('[data-source-line]') as HTMLElement | null;
+      if (!lineElement) return false;
+      const sourceLine = parseInt(lineElement.dataset.sourceLine ?? '0');
+      selectionPopover = {
+        sourceLine: sourceLine || null,
+        sourceEndLine: sourceLine || null,
+        selectionText: '',
+        x: e.clientX,
+        y: e.clientY,
+      };
+      return true;
     }
     const selText = sel.toString().trim();
     const range = sel.getRangeAt(0);
-    const lineEl = range.startContainer.parentElement?.closest('[data-source-line]');
+    const lineEl = closestSourceElement(range.startContainer);
+    const endLineEl = closestSourceElement(range.endContainer);
     const sourceLine = lineEl ? parseInt((lineEl as HTMLElement).dataset.sourceLine ?? '0') : null;
+    const sourceEndLine = endLineEl ? parseInt((endLineEl as HTMLElement).dataset.sourceLine ?? '0') : sourceLine;
 
-    if (commentPaneOpen) {
-      onAddComment?.(sourceLine, selText);
+    const rect = range.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.bottom;
+
+    if (commentPaneOpen && !allowBlockComment) {
+      onAddComment?.(sourceLine, sourceEndLine, selText);
       selectionPopover = null;
     } else {
-      selectionPopover = { sourceLine, selectionText: selText, x: e.clientX, y: e.clientY };
+      selectionPopover = { sourceLine, sourceEndLine, selectionText: selText, x, y };
     }
+    return true;
   }
 
   function handlePopoverAddComment() {
     if (!selectionPopover) return;
-    onAddComment?.(selectionPopover.sourceLine, selectionPopover.selectionText);
+    onAddComment?.(selectionPopover.sourceLine, selectionPopover.sourceEndLine, selectionPopover.selectionText);
     selectionPopover = null;
     window.getSelection()?.removeAllRanges();
+  }
+
+  export function addCommentFromSelection(): boolean {
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || !selection.toString().trim()) return false;
+    const range = selection.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+    return showCommentMenu(new MouseEvent('contextmenu', { clientX: rect.left + rect.width / 2, clientY: rect.bottom }), true);
   }
 </script>
 
@@ -232,7 +299,7 @@
   {#if loading}
     <div class="loading-state">Loading...</div>
   {:else}
-    <div class="markdown-body" bind:this={previewEl} onmouseup={handleTextSelection} onclick={handleMarkClick} role="document">
+    <div class="markdown-body" bind:this={previewEl} onmouseup={handleTextSelection} oncontextmenu={handleContextMenu} onclick={handleMarkClick} role="document">
       {#if frontmatter && frontmatter.entries.length > 0}
         <div class="frontmatter-panel">
           <div class="frontmatter-header">Metadata</div>
@@ -255,7 +322,7 @@
   {#if selectionPopover && onAddComment}
     <div
       class="context-menu"
-      style="left: {selectionPopover.x}px; top: {selectionPopover.y + 6}px;"
+      style="left: {selectionPopover.x}px; top: {selectionPopover.y + 8}px;"
       role="menu"
     >
       <button
@@ -277,6 +344,11 @@
     flex-direction: column;
     overflow: hidden;
     position: relative;
+    border: 0;
+    border-radius: 16px;
+    background: var(--surface-raised);
+    box-shadow: var(--surface-shadow);
+    backdrop-filter: blur(16px);
   }
 
   .loading-state {
@@ -291,10 +363,11 @@
   .markdown-body {
     flex: 1;
     overflow-y: auto;
-    padding: 24px 32px;
+    padding: 32px 40px;
     color: var(--text-primary);
-    line-height: 1.7;
-    font-size: 15px;
+    line-height: var(--line-height-content, 1.7);
+    font-size: var(--font-size-content, 15px);
+    width: 100%;
   }
 
   .markdown-body :global(h1) {
@@ -369,6 +442,7 @@
     padding: 4px;
     min-width: 160px;
     pointer-events: all;
+    transform: translateX(-50%);
   }
 
   .context-menu-item {
@@ -400,6 +474,8 @@
       height: auto !important;
       flex: none !important;
       display: block !important;
+      border: 0 !important;
+      box-shadow: none !important;
     }
 
     .markdown-body {

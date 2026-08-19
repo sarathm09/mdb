@@ -20,7 +20,7 @@
   let initialized = false;
 
   const lightTheme = EditorView.theme({
-    '&': { backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' },
+    '&': { backgroundColor: 'var(--surface-raised)', color: 'var(--text-primary)' },
     '.cm-content': { caretColor: 'var(--text-primary)' },
     '.cm-cursor': { borderLeftColor: 'var(--text-primary)' },
     '.cm-activeLine': { backgroundColor: 'var(--bg-tertiary)' },
@@ -281,6 +281,11 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    border: 0;
+    border-radius: 16px;
+    background: var(--surface-raised);
+    box-shadow: var(--surface-shadow);
+    backdrop-filter: blur(16px);
   }
 
   .drag-over {
@@ -324,6 +329,12 @@
 
   .editor-area :global(.cm-editor) {
     height: 100%;
+    background: transparent !important;
+  }
+
+  .editor-area :global(.cm-scroller),
+  .editor-area :global(.cm-gutters) {
+    background: transparent !important;
   }
 
   .table-dialog-backdrop {

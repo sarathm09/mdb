@@ -1,23 +1,32 @@
 import { Hono } from 'hono';
-import type { CommentsDB } from '../db/comments-db';
+import type { CommentsStore } from '../services/comments-store';
 import type { WSManager } from '../ws-manager';
 import { startAIReview, getJobStatus, applyAIResponse } from '../services/ai-service';
-import type { AIReviewResponse } from '../../shared/types';
+import type { AIReviewConfig } from '../services/ai-service';
+import type { AIHarness, AIReviewRequest, AIReviewResponse } from '../../shared/types';
 
 export function createAIRoutes(
   rootDir: string,
-  claudeCliPathGetter: () => Promise<string>,
-  db: CommentsDB,
+  aiConfigGetter: () => Promise<AIReviewConfig>,
+  db: CommentsStore,
   wsManager: WSManager,
 ): Hono {
   const app = new Hono();
 
   app.post('/ai/review', async (c) => {
     try {
-      const body = await c.req.json<{ filePath: string }>();
+      const body = await c.req.json<AIReviewRequest>();
       if (!body.filePath) return c.json({ error: 'Missing filePath' }, 400);
-      const claudeCliPath = await claudeCliPathGetter();
-      const jobId = await startAIReview(body.filePath, rootDir, claudeCliPath, db, wsManager);
+      const savedConfig = await aiConfigGetter();
+      const harnesses: AIHarness[] = ['claude', 'codex', 'opencode'];
+      if (body.harness && !harnesses.includes(body.harness)) return c.json({ error: 'Unsupported AI harness' }, 400);
+      const config: AIReviewConfig = {
+        harness: body.harness ?? savedConfig.harness,
+        model: body.model ?? savedConfig.model,
+        agent: body.agent ?? savedConfig.agent,
+        executablePath: body.executablePath ?? savedConfig.executablePath,
+      };
+      const jobId = await startAIReview(body.filePath, rootDir, config, db, wsManager);
       return c.json({ jobId });
     } catch (err) {
       return c.json({ error: err instanceof Error ? err.message : 'Unknown error' }, 500);
@@ -28,7 +37,7 @@ export function createAIRoutes(
     const jobId = c.req.param('jobId');
     const job = getJobStatus(jobId);
     if (!job) return c.json({ error: 'Job not found' }, 404);
-    return c.json({ status: job.status, error: job.error });
+    return c.json({ status: job.status, error: job.error, harness: job.harness, model: job.model, agent: job.agent });
   });
 
   app.post('/ai/apply', async (c) => {

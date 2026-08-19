@@ -14,16 +14,20 @@ export function isInputFocused(): boolean {
 export interface ShortcutInfo {
   keys: string;
   description: string;
-  category: 'General' | 'Editor' | 'Explorer';
+  category: 'General' | 'Review' | 'Editor' | 'Explorer';
 }
 
 export const SHORTCUTS: ShortcutInfo[] = [
   { keys: `${modLabel}+D`, description: 'Toggle sidebar', category: 'General' },
+  { keys: `${modLabel}+,`, description: 'Toggle settings', category: 'General' },
   { keys: `${modLabel}+Shift+P`, description: 'Command palette', category: 'General' },
   { keys: '?', description: 'Show keyboard shortcuts', category: 'General' },
   { keys: `${modLabel}+Shift+Enter`, description: 'Presentation mode', category: 'General' },
   { keys: `${modLabel}+Shift+E`, description: 'Export menu', category: 'General' },
   { keys: 'Escape', description: 'Close modal / deselect file', category: 'General' },
+  { keys: `${modLabel}+Shift+C`, description: 'Toggle comments', category: 'Review' },
+  { keys: `${modLabel}+Alt+C`, description: 'Comment selected text', category: 'Review' },
+  { keys: `${modLabel}+Shift+V`, description: 'Toggle split edit and preview', category: 'Review' },
   { keys: `${modLabel}+B`, description: 'Bold', category: 'Editor' },
   { keys: `${modLabel}+I`, description: 'Italic', category: 'Editor' },
   { keys: `${modLabel}+U`, description: 'Underline', category: 'Editor' },

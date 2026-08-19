@@ -5,14 +5,21 @@ import { tmpdir } from "node:os";
 import { createServer } from "node:http";
 import { Hono } from "hono";
 import { createFileRoutes } from "./files";
+import type { ExternalOpenRequest } from "../services/external-opener";
 
 let rootDir: string;
 let app: Hono;
+let externalOpenRequests: ExternalOpenRequest[];
 
 beforeEach(async () => {
   rootDir = await mkdtemp(path.join(tmpdir(), "mdb-api-test-"));
+  externalOpenRequests = [];
   app = new Hono();
-  app.route("/api", createFileRoutes(rootDir));
+  app.route("/api", createFileRoutes(rootDir, {
+    externalOpener: async (request) => {
+      externalOpenRequests.push(request);
+    },
+  }));
 });
 
 afterEach(async () => {
@@ -95,6 +102,19 @@ describe("GET /api/files", () => {
   test("returns 400 for nonexistent directory", async () => {
     const res = await req("/files?path=nonexistent");
     expect(res.status).toBe(400);
+  });
+});
+
+describe("GET /api/applications", () => {
+  test("rejects unknown application types", async () => {
+    const res = await req("/applications?type=editor");
+    expect(res.status).toBe(400);
+  });
+
+  test("returns terminal application names", async () => {
+    const res = await req("/applications?type=terminal");
+    expect(res.status).toBe(200);
+    expect(Array.isArray(await res.json())).toBe(true);
   });
 });
 
@@ -268,6 +288,13 @@ describe("GET /api/raw", () => {
     expect(res.status).toBe(200);
     const text = await res.text();
     expect(text).toBe("raw content");
+    expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+  });
+
+  test("sets PDF content type", async () => {
+    await fsWriteFile(path.join(rootDir, "document.pdf"), "%PDF-test");
+    const res = await req("/raw?path=document.pdf");
+    expect(res.headers.get("content-type")).toBe("application/pdf");
   });
 
   test("returns 400 when path is missing", async () => {
@@ -293,7 +320,7 @@ describe("GET /api/settings", () => {
   });
 
   test("returns saved settings", async () => {
-    const settingsPath = path.join(rootDir, ".@sarathm09/mdb.json");
+    const settingsPath = path.join(rootDir, ".mdb/settings.json");
     await mkdir(path.dirname(settingsPath), { recursive: true });
     await fsWriteFile(settingsPath, JSON.stringify({ theme: "dark" }));
     const res = await req("/settings");
@@ -306,7 +333,9 @@ describe("PUT /api/settings", () => {
   test("returns 500 when settings directory does not exist and cannot be created", async () => {
     // Create a file where the directory should be, causing write to fail
     const badApp = new Hono();
-    badApp.route("/api", createFileRoutes("/nonexistent/root/dir"));
+    badApp.route("/api", createFileRoutes("/nonexistent/root/dir", {
+      externalOpener: async () => {},
+    }));
     const res = await badApp.request("http://localhost/api/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -316,7 +345,7 @@ describe("PUT /api/settings", () => {
   });
 
   test("saves settings", async () => {
-    const settingsDir = path.join(rootDir, ".@sarathm09");
+    const settingsDir = path.join(rootDir, ".mdb");
     await mkdir(settingsDir, { recursive: true });
     const res = await req("/settings", {
       method: "PUT",
@@ -325,7 +354,7 @@ describe("PUT /api/settings", () => {
     });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ success: true });
-    const settingsPath = path.join(rootDir, ".@sarathm09/mdb.json");
+    const settingsPath = path.join(rootDir, ".mdb/settings.json");
     const saved = JSON.parse(await fsReadFile(settingsPath, "utf-8"));
     expect(saved).toEqual({ theme: "light", fontSize: 16 });
   });
@@ -415,6 +444,16 @@ describe("POST /api/open-external", () => {
     expect(res.status).toBe(400);
   });
 
+  test("returns 400 for an invalid action without invoking opener", async () => {
+    const res = await req("/open-external", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: ".", action: "launch" }),
+    });
+    expect(res.status).toBe(400);
+    expect(externalOpenRequests).toEqual([]);
+  });
+
   test("returns 500 for path traversal", async () => {
     const res = await req("/open-external", {
       method: "POST",
@@ -434,6 +473,7 @@ describe("POST /api/open-external", () => {
     });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ success: true });
+    expect(externalOpenRequests).toEqual([{ path: rootDir, action: "finder", app: undefined }]);
   });
 
   test("opens directory in terminal", async () => {
@@ -444,6 +484,7 @@ describe("POST /api/open-external", () => {
     });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ success: true });
+    expect(externalOpenRequests).toEqual([{ path: rootDir, action: "terminal", app: undefined }]);
   });
 
   test("opens file in terminal resolves to parent directory", async () => {
@@ -454,6 +495,11 @@ describe("POST /api/open-external", () => {
       body: JSON.stringify({ path: "test.md", action: "terminal" }),
     });
     expect(res.status).toBe(200);
+    expect(externalOpenRequests).toEqual([{
+      path: path.join(rootDir, "test.md"),
+      action: "terminal",
+      app: undefined,
+    }]);
   });
 
   test("opens directory in terminal with custom app", async () => {
@@ -462,9 +508,8 @@ describe("POST /api/open-external", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path: ".", action: "terminal", app: "iTerm" }),
     });
-    // May fail if iTerm is not installed, which is fine - we just test the code path
-    const data = await res.json();
-    expect(typeof data).toBe("object");
+    expect(res.status).toBe(200);
+    expect(externalOpenRequests).toEqual([{ path: rootDir, action: "terminal", app: "iTerm" }]);
   });
 
   test("opens file in default editor", async () => {
@@ -476,6 +521,11 @@ describe("POST /api/open-external", () => {
     });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ success: true });
+    expect(externalOpenRequests).toEqual([{
+      path: path.join(rootDir, "edit.md"),
+      action: "editor",
+      app: undefined,
+    }]);
   });
 
   test("opens file in specified editor app", async () => {
@@ -487,5 +537,10 @@ describe("POST /api/open-external", () => {
     });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ success: true });
+    expect(externalOpenRequests).toEqual([{
+      path: path.join(rootDir, "edit2.md"),
+      action: "editor",
+      app: "TextEdit",
+    }]);
   });
 });
