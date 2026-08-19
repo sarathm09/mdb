@@ -6,8 +6,8 @@ export interface FrontmatterData {
 export function parseFrontmatter(content: string): { frontmatter: FrontmatterData | null; body: string } {
   const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
   if (!match) return { frontmatter: null, body: content };
-  const raw = match[1];
-  const body = match[2];
+  const raw = match[1] ?? '';
+  const body = match[2] ?? '';
   const entries: [string, string][] = [];
   for (const line of raw.split('\n')) {
     const idx = line.indexOf(':');

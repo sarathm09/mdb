@@ -1,20 +1,10 @@
 import { Marked } from 'marked';
-import { markedHighlight } from 'marked-highlight';
 import hljs from 'highlight.js';
 import DOMPurify from 'dompurify';
 import { getRawFileUrl } from '../services/api';
 
 export function createMarkedInstance(): Marked {
-  const marked = new Marked(
-    markedHighlight({
-      emptyLangClass: 'hljs',
-      langPrefix: 'hljs language-',
-      highlight(code, lang) {
-        const language = hljs.getLanguage(lang) ? lang : 'plaintext';
-        return hljs.highlight(code, { language }).value;
-      }
-    })
-  );
+  const marked = new Marked();
   marked.setOptions({ gfm: true, breaks: true });
   return marked;
 }
@@ -23,6 +13,12 @@ export async function renderMarkdown(md: string, dirPath: string, annotateLines 
   const normalized = md.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\t/g, '    ');
   const marked = createMarkedInstance();
   const renderer = new marked.Renderer();
+  renderer.code = function(token) {
+    const requestedLanguage = (token.lang ?? '').trim().split(/[\s#]/, 1)[0]?.toLowerCase() ?? '';
+    const language = requestedLanguage && hljs.getLanguage(requestedLanguage) ? requestedLanguage : 'plaintext';
+    const highlighted = hljs.highlight(token.text, { language }).value;
+    return `<pre><code class="hljs language-${language}">${highlighted}</code></pre>`;
+  };
   renderer.image = function({ href, title, text }: { href: string; title: string | null; text: string }) {
     if (href && !href.startsWith('http') && !href.startsWith('//')) {
       const imgPath = dirPath === '.' ? href : `${dirPath}/${href}`;
@@ -41,35 +37,35 @@ export async function renderMarkdown(md: string, dirPath: string, annotateLines 
 
     renderer.heading = function(token: Parameters<typeof origHeading>[0]) {
       const line = currentLine;
-      currentLine += (token.raw.match(/\n/g) || []).length + 1;
+      currentLine += Math.max(1, (token.raw.match(/\n/g) || []).length);
       const result = origHeading(token) as string;
       return result.replace(/^<h(\d)/, `<h$1 data-source-line="${line}"`);
     };
 
     renderer.paragraph = function(token: Parameters<typeof origParagraph>[0]) {
       const line = currentLine;
-      currentLine += (token.raw.match(/\n/g) || []).length + 1;
+      currentLine += Math.max(1, (token.raw.match(/\n/g) || []).length);
       const result = origParagraph(token) as string;
       return result.replace(/^<p/, `<p data-source-line="${line}"`);
     };
 
     renderer.code = function(token: Parameters<typeof origCode>[0]) {
       const line = currentLine;
-      currentLine += (token.raw.match(/\n/g) || []).length + 1;
+      currentLine += Math.max(1, (token.raw.match(/\n/g) || []).length);
       const result = origCode(token) as string;
       return result.replace(/^<pre/, `<pre data-source-line="${line}"`);
     };
 
     renderer.blockquote = function(token: Parameters<typeof origBlockquote>[0]) {
       const line = currentLine;
-      currentLine += (token.raw.match(/\n/g) || []).length + 1;
+      currentLine += Math.max(1, (token.raw.match(/\n/g) || []).length);
       const result = origBlockquote(token) as string;
       return result.replace(/^<blockquote/, `<blockquote data-source-line="${line}"`);
     };
 
     renderer.list = function(token: Parameters<typeof origList>[0]) {
       const line = currentLine;
-      currentLine += (token.raw.match(/\n/g) || []).length + 1;
+      currentLine += Math.max(1, (token.raw.match(/\n/g) || []).length);
       const result = origList(token) as string;
       return result.replace(/^<[ou]l/, `$& data-source-line="${line}"`);
     };
@@ -116,6 +112,21 @@ export function addCopyButtons(container: HTMLElement): void {
       setTimeout(() => { btn.innerHTML = COPY_SVG; btn.style.color = '#636d83'; }, 1500);
     });
     pre.appendChild(btn);
+  }
+}
+
+export function addResizableImages(container: HTMLElement): void {
+  for (const image of container.querySelectorAll<HTMLImageElement>('img')) {
+    if (image.parentElement?.classList.contains('resizable-image')) continue;
+    const wrapper = document.createElement('span');
+    wrapper.className = 'resizable-image';
+    image.parentNode?.insertBefore(wrapper, image);
+    wrapper.appendChild(image);
+    const setInitialWidth = () => {
+      if (!wrapper.style.width) wrapper.style.width = `${Math.min(image.naturalWidth || image.clientWidth || 640, container.clientWidth)}px`;
+    };
+    if (image.complete) setInitialWidth();
+    else image.addEventListener('load', setInitialWidth, { once: true });
   }
 }
 
@@ -176,7 +187,32 @@ export async function renderMermaidBlocks(container: HTMLElement): Promise<void>
   }
 }
 
+export async function renderMermaidSource(source: string): Promise<string> {
+  const mermaid = (await import('mermaid')).default;
+  const styles = getComputedStyle(document.documentElement);
+  mermaid.initialize({
+    startOnLoad: false,
+    securityLevel: 'strict',
+    theme: 'base',
+    themeVariables: {
+      primaryColor: styles.getPropertyValue('--bg-tertiary').trim() || '#2c313a',
+      primaryTextColor: styles.getPropertyValue('--text-primary').trim() || '#abb2bf',
+      primaryBorderColor: styles.getPropertyValue('--border').trim() || '#3e4451',
+      lineColor: styles.getPropertyValue('--text-secondary').trim() || '#636d83',
+      secondaryColor: styles.getPropertyValue('--bg-secondary').trim() || '#21252b',
+      tertiaryColor: styles.getPropertyValue('--bg-primary').trim() || '#282c34',
+    },
+  });
+  const id = `mermaid-file-${crypto.randomUUID()}`;
+  const { svg } = await mermaid.render(id, source);
+  return DOMPurify.sanitize(svg, {
+    USE_PROFILES: { svg: true, svgFilters: true },
+    ADD_TAGS: ['style', 'foreignObject'],
+  });
+}
+
 export async function postProcessElement(container: HTMLElement): Promise<void> {
   addCopyButtons(container);
+  addResizableImages(container);
   await renderMermaidBlocks(container);
 }

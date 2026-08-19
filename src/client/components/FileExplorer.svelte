@@ -218,6 +218,13 @@
     flex: 1;
     padding: 24px;
     overflow-y: auto;
+    min-height: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 16px;
+    background: var(--surface-raised);
+    box-shadow: var(--surface-shadow);
+    backdrop-filter: blur(16px);
   }
 
   .explorer-header {
@@ -243,13 +250,13 @@
   .view-toggle {
     display: flex;
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: 10px;
     overflow: hidden;
   }
 
   .toggle-btn {
-    background: var(--bg-tertiary);
-    color: var(--text-secondary);
+    background: var(--control-raised);
+    color: color-mix(in srgb, var(--text-primary) 78%, white);
     border: none;
     padding: 6px 8px;
     cursor: pointer;
@@ -277,10 +284,10 @@
     color: #fff;
     border: none;
     padding: 8px 16px;
-    border-radius: 6px;
+    border-radius: 10px;
     font-size: 14px;
     cursor: pointer;
-    font-weight: 500;
+    font-weight: 650;
     transition: opacity 0.15s ease;
   }
 
@@ -311,16 +318,18 @@
   .file-list {
     display: flex;
     flex-direction: column;
-    border: 1px solid var(--border);
-    border-radius: 8px;
+    border: 0;
+    border-radius: 0;
     overflow: hidden;
+    background: transparent;
+    box-shadow: none;
   }
 
   .list-header {
     display: flex;
     padding: 8px 16px;
-    background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border);
+    background: transparent;
+    border-bottom: 0;
     font-size: 12px;
     font-weight: 600;
     color: var(--text-secondary);
@@ -331,13 +340,14 @@
   .list-row {
     display: flex;
     padding: 10px 16px;
-    background: var(--bg-primary);
+    background: transparent;
     border: none;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 0;
     cursor: pointer;
     text-align: left;
-    color: var(--text-primary);
-    font-size: 14px;
+    color: color-mix(in srgb, var(--text-primary) 94%, white);
+    font-size: 15px;
+    font-weight: 520;
     transition: background 0.1s;
     align-items: center;
     width: 100%;
@@ -348,7 +358,7 @@
   }
 
   .list-row:hover {
-    background: var(--bg-tertiary);
+    background: var(--surface-raised-hover);
   }
 
   .list-col-name {
@@ -360,7 +370,7 @@
   }
 
   .row-icon {
-    font-size: 16px;
+    font-size: 20px;
     flex-shrink: 0;
   }
 
@@ -399,23 +409,24 @@
     align-items: flex-start;
     gap: 8px;
     padding: 16px;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border);
-    border-radius: 8px;
+    background: var(--surface-raised);
+    border: 0;
+    border-radius: 14px;
     cursor: pointer;
     text-align: left;
     transition: transform 0.15s ease, box-shadow 0.15s ease;
-    color: var(--text-primary);
-    font-size: 14px;
+    box-shadow: var(--control-shadow);
+    color: color-mix(in srgb, var(--text-primary) 94%, white);
+    font-size: 15px;
   }
 
   .file-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.68), 0 1px 3px rgba(0, 0, 0, 0.8);
   }
 
   .card-icon {
-    font-size: 28px;
+    font-size: 34px;
   }
 
   .card-name {
@@ -432,14 +443,19 @@
   }
 
   .list-row.focused {
-    background: var(--bg-tertiary);
+    background: color-mix(in srgb, var(--accent-blue) 22%, var(--bg-tertiary) 44%, transparent);
     outline: 2px solid var(--accent-blue);
     outline-offset: -2px;
+    color: color-mix(in srgb, var(--accent-blue) 72%, white);
+    font-weight: 650;
   }
 
   .file-card.focused {
     outline: 2px solid var(--accent-blue);
     outline-offset: -2px;
+    background: color-mix(in srgb, var(--accent-blue) 20%, var(--bg-tertiary) 42%, transparent);
+    color: color-mix(in srgb, var(--accent-blue) 72%, white);
+    box-shadow: 0 0 9px color-mix(in srgb, var(--accent-blue) 34%, transparent), var(--control-shadow);
   }
 
   .file-explorer:focus {

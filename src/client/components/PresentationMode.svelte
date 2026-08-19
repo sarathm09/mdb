@@ -131,9 +131,15 @@
       await deck.initialize();
 
       await postProcessElement(revealContainer);
+      markScrollableSlides(revealContainer);
 
       deck.on('slidechanged', () => {
-        if (revealContainer) postProcessElement(revealContainer);
+        if (revealContainer) {
+          postProcessElement(revealContainer);
+          for (const element of revealContainer.querySelectorAll<HTMLElement>('.scrollable-slide')) {
+            element.scrollTop = 0;
+          }
+        }
       });
     } catch (err) {
       console.error('Failed to initialize presentation:', err);
@@ -195,6 +201,14 @@
           verticalGroup.removeChild(sub);
           slidesWrapper.replaceChild(sub, section);
         }
+      }
+    }
+  }
+
+  function markScrollableSlides(container: HTMLDivElement) {
+    for (const section of container.querySelectorAll('.slides section')) {
+      if (section.scrollHeight > section.clientHeight + 10) {
+        section.classList.add('scrollable-slide');
       }
     }
   }
@@ -524,6 +538,21 @@
   :global(.reveal .slide-number) {
     color: var(--text-secondary);
     background: var(--bg-secondary);
+  }
+
+  :global(.reveal .slides section.scrollable-slide) {
+    overflow-y: auto !important;
+    max-height: 100%;
+    scrollbar-width: thin;
+  }
+
+  :global(.reveal .slides section.scrollable-slide::-webkit-scrollbar) {
+    width: 6px;
+  }
+
+  :global(.reveal .slides section.scrollable-slide::-webkit-scrollbar-thumb) {
+    background: var(--scrollbar);
+    border-radius: 3px;
   }
 
   :global(.reveal section.markdown-body img) {

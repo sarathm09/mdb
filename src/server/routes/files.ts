@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import path from "node:path";
-import { readFile as fsReadFile, writeFile as fsWriteFile, stat, access } from "node:fs/promises";
+import { readFile as fsReadFile, writeFile as fsWriteFile, access } from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import {
   listDirectory,
@@ -12,8 +12,14 @@ import {
   resolveAndValidate,
   uploadFile,
 } from "../services/file-service";
+import type { ExternalOpenAction, ExternalOpener } from "../services/external-opener";
 
-export function createFileRoutes(rootDir: string, onFileChanged?: (relativePath: string) => void): Hono {
+export interface FileRouteOptions {
+  onFileChanged?: (relativePath: string) => void;
+  externalOpener: ExternalOpener;
+}
+
+export function createFileRoutes(rootDir: string, options: FileRouteOptions): Hono {
   const app = new Hono();
 
   app.get("/search", async (c) => {
@@ -23,7 +29,10 @@ export function createFileRoutes(rootDir: string, onFileChanged?: (relativePath:
         return c.json([]);
       }
       const showHidden = c.req.query("showHidden") === "true";
-      const results = await searchFiles(rootDir, query.trim(), 20, 10, showHidden);
+      const types = c.req.query("types") ?? "markdown";
+      const requestedDepth = Number.parseInt(c.req.query("maxDepth") ?? "100", 10);
+      const maxDepth = Number.isFinite(requestedDepth) ? Math.max(0, Math.min(requestedDepth, 100)) : 100;
+      const results = await searchFiles(rootDir, query.trim(), 50, maxDepth, showHidden, types === "all");
       return c.json(results);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
@@ -64,7 +73,7 @@ export function createFileRoutes(rootDir: string, onFileChanged?: (relativePath:
         return c.json({ error: "Missing path or content in body" }, 400);
       }
       await writeFile(rootDir, body.path, body.content);
-      onFileChanged?.(body.path);
+      options.onFileChanged?.(body.path);
       return c.json({ success: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
@@ -111,8 +120,14 @@ export function createFileRoutes(rootDir: string, onFileChanged?: (relativePath:
       const rawPath = readRawFile(rootDir, filePath);
       const stream = createReadStream(rawPath);
       const { Readable } = await import("node:stream");
-      const webStream = Readable.toWeb(stream) as ReadableStream;
-      return new Response(webStream);
+      const webStream = Readable.toWeb(stream) as unknown as ReadableStream;
+      return new Response(webStream, {
+        headers: {
+          "Content-Type": contentTypeFor(filePath),
+          "X-Content-Type-Options": "nosniff",
+          "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; img-src data: blob:",
+        },
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
       return c.json({ error: message }, 400);
@@ -131,9 +146,15 @@ export function createFileRoutes(rootDir: string, onFileChanged?: (relativePath:
     }
   });
 
+  app.get("/applications", async (c) => {
+    if (c.req.query("type") !== "terminal") return c.json({ error: "Invalid application type" }, 400);
+    return c.json(await discoverTerminalApplications());
+  });
+
   app.put("/settings", async (c) => {
     try {
       const body = await c.req.json();
+      await import("node:fs/promises").then(({ mkdir }) => mkdir(path.dirname(settingsPath), { recursive: true }));
       await fsWriteFile(settingsPath, JSON.stringify(body, null, 2));
       return c.json({ success: true });
     } catch (err) {
@@ -172,33 +193,15 @@ export function createFileRoutes(rootDir: string, onFileChanged?: (relativePath:
 
   app.post("/open-external", async (c) => {
     try {
-      const body = await c.req.json<{ path: string; action: "terminal" | "finder" | "editor"; app?: string }>();
+      const body = await c.req.json<{ path: string; action: ExternalOpenAction; app?: string }>();
       if (!body.path || !body.action) {
         return c.json({ error: "Missing path or action" }, 400);
       }
-      const resolvedPath = resolveAndValidate(rootDir, body.path);
-      const { execFile } = await import("node:child_process");
-      const { promisify } = await import("node:util");
-      const execFileAsync = promisify(execFile);
-
-      switch (body.action) {
-        case "terminal": {
-          const fileStat = await stat(resolvedPath);
-          const dir = fileStat.isDirectory() ? resolvedPath : path.dirname(resolvedPath);
-          const terminalApp = body.app || "Terminal";
-          await execFileAsync("open", ["-a", terminalApp, dir]);
-          break;
-        }
-        case "finder": {
-          await execFileAsync("open", ["-R", resolvedPath]);
-          break;
-        }
-        case "editor": {
-          const args = body.app ? ["-a", body.app, resolvedPath] : [resolvedPath];
-          await execFileAsync("open", args);
-          break;
-        }
+      if (!["terminal", "finder", "editor"].includes(body.action)) {
+        return c.json({ error: "Invalid action" }, 400);
       }
+      const resolvedPath = resolveAndValidate(rootDir, body.path);
+      await options.externalOpener({ path: resolvedPath, action: body.action, app: body.app });
       return c.json({ success: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
@@ -207,4 +210,61 @@ export function createFileRoutes(rootDir: string, onFileChanged?: (relativePath:
   });
 
   return app;
+}
+
+const TERMINAL_APPLICATIONS = [
+  ["Terminal", "/System/Applications/Utilities/Terminal.app"],
+  ["iTerm", "/Applications/iTerm.app"],
+  ["Warp", "/Applications/Warp.app"],
+  ["Ghostty", "/Applications/Ghostty.app"],
+  ["Alacritty", "/Applications/Alacritty.app"],
+  ["kitty", "/Applications/kitty.app"],
+  ["WezTerm", "/Applications/WezTerm.app"],
+  ["Hyper", "/Applications/Hyper.app"],
+] as const;
+
+async function discoverTerminalApplications(): Promise<string[]> {
+  if (process.platform !== "darwin") return [];
+  const installed = await Promise.all(
+    TERMINAL_APPLICATIONS.map(async ([name, appPath]) => access(appPath).then(() => name).catch(() => null)),
+  );
+  return installed.filter((name): name is NonNullable<typeof name> => name !== null);
+}
+
+function contentTypeFor(filePath: string): string {
+  const types: Record<string, string> = {
+    ".avif": "image/avif",
+    ".bmp": "image/bmp",
+    ".css": "text/css; charset=utf-8",
+    ".csv": "text/csv; charset=utf-8",
+    ".gif": "image/gif",
+    ".htm": "text/html; charset=utf-8",
+    ".html": "text/html; charset=utf-8",
+    ".ico": "image/x-icon",
+    ".jpeg": "image/jpeg",
+    ".jpg": "image/jpeg",
+    ".js": "text/javascript; charset=utf-8",
+    ".json": "application/json; charset=utf-8",
+    ".m4a": "audio/mp4",
+    ".md": "text/markdown; charset=utf-8",
+    ".markdown": "text/markdown; charset=utf-8",
+    ".mov": "video/quicktime",
+    ".mp3": "audio/mpeg",
+    ".mp4": "video/mp4",
+    ".oga": "audio/ogg",
+    ".ogg": "audio/ogg",
+    ".ogv": "video/ogg",
+    ".pdf": "application/pdf",
+    ".png": "image/png",
+    ".svg": "image/svg+xml",
+    ".ts": "text/typescript; charset=utf-8",
+    ".txt": "text/plain; charset=utf-8",
+    ".wav": "audio/wav",
+    ".webm": "video/webm",
+    ".webp": "image/webp",
+    ".xml": "application/xml; charset=utf-8",
+    ".yaml": "text/yaml; charset=utf-8",
+    ".yml": "text/yaml; charset=utf-8",
+  };
+  return types[path.extname(filePath).toLowerCase()] ?? "application/octet-stream";
 }

@@ -1,6 +1,6 @@
 # Markdown Browser
 
-A CLI tool that opens a web-based file explorer for browsing, creating, viewing, and editing markdown files in any directory. Features presentation mode, multiple themes, export options, syntax-highlighted code blocks, mermaid diagram support, and a full CodeMirror editor.
+A CLI tool that opens a web-based file explorer for browsing, creating, reviewing, viewing, and editing markdown files in any directory. Features split edit/preview, portable inline comments, presentation mode, responsive themes, export options, resizable images, syntax-highlighted code blocks, Mermaid diagrams, and a full CodeMirror editor.
 
 ## Quick Start
 
@@ -9,6 +9,24 @@ Run directly without installing:
 ```bash
 npx @sarathm09/mdb [directory]
 bunx @sarathm09/mdb [directory]
+```
+
+Convert Markdown without starting the UI:
+
+```bash
+mdb convert README.md --to html
+mdb convert README.md --to rich-text --output README.rtf
+mdb convert README.md --to docx
+mdb convert README.md --to pdf
+```
+
+Read or export portable review comments for an AI agent:
+
+```bash
+mdb comments list README.md
+mdb comments export README.md --output README.review.json
+mdb comments reply README.md <comment-id> --body "Addressed in the latest revision"
+mdb comments block README.md <comment-id>
 ```
 
 ## Install
@@ -78,24 +96,30 @@ The server starts on a random port and opens your browser automatically.
 - **File Explorer** - Grid view of files and folders with icons, sizes, and dates
 - **Collapsible Sidebar** - File tree with hamburger toggle, breadcrumb navigation
 - **Markdown Preview** - Rendered HTML with full GFM support:
-  - Syntax-highlighted code blocks (highlight.js)
+  - Syntax-highlighted, inset code blocks with one-click copy
   - Mermaid diagrams (lazy-loaded)
-  - Tables, task lists, blockquotes, links, images
+  - Tables, task lists, blockquotes, links, and horizontally resizable images
   - DOMPurify sanitization for security
+- **Broad File Preview** - Images, source/text, formatted JSON, Mermaid files, Excalidraw drawings, PDF, audio, video, and sandboxed HTML
 - **Markdown Editor** - CodeMirror 6 with:
   - Theme-aware syntax highlighting
   - Markdown syntax highlighting
   - Language-aware code block highlighting
   - Cmd/Ctrl+S to save
   - Unsaved changes indicator
-- **Toggle Mode** - Switch between Preview and Edit with a button
+- **Editing Modes** - Switch between Preview, Edit, and responsive side-by-side Edit + Preview
 - **Create Files** - New markdown file dialog with auto `.md` extension
 - **Presentation Mode** - Turn any markdown file into a slide deck with keyboard navigation
 - **Export Features** - Export files as Markdown, HTML, or PDF; export presentations as PNG zip or PDF
-- **Themes** - 5 available themes: One Dark, Tokyo Night, Catppuccin Mocha, GitHub Dark, GitHub Light
+- **Themes** - 5 built-in palettes: Graphite, Midnight Blue, Deep Mocha, Near Black, and Soft Daylight
 - **Command Palette** - Quick file search and actions via `Cmd+Shift+P`
 - **Keyboard Shortcuts** - Comprehensive shortcuts for navigation, editing, and presentation
 - **Security** - Path traversal protection (can't navigate above root directory)
+- **Inline Review** - Select text across words, sentences, or lines; add general or blocking comments; reply in a document side panel
+- **Responsive Workspace** - Animated explorer/comments panels, compact responsive navbar actions, routed settings page, and full-path breadcrumbs with copy support
+- **Portable Comments** - Review data is stored beside each file as `<file>.mdb-comments.json`, so moving or copying both files preserves review context
+- **Agent Review Skill** - Starting MDB installs an `mdb-comments` skill for Claude Code, Codex-compatible agents, and OpenCode so agents can address portable comment threads through the CLI
+- **CLI Conversion** - Convert Markdown to standalone HTML, rich text (`.rtf`), Word (`.docx`), or PDF
 
 ## Presentation Mode
 
@@ -157,11 +181,11 @@ Five built-in themes are available, configurable via the Settings dialog:
 
 | Theme | Style |
 |-------|-------|
-| One Dark | Dark, warm tones |
-| Tokyo Night | Dark, cool blue tones |
-| Catppuccin Mocha | Dark, pastel palette |
-| GitHub Dark | Dark, GitHub-inspired |
-| GitHub Light | Light, GitHub-inspired |
+| Graphite | Neutral charcoal with amber accents |
+| Midnight Blue | Cool navy with blue accents |
+| Deep Mocha | Near-black with soft pastel accents |
+| Near Black | High-contrast dark palette |
+| Soft Daylight | Clean light palette without dark-theme shadows |
 
 ## Keyboard Shortcuts
 
@@ -172,7 +196,11 @@ Press `?` at any time to open the shortcuts help modal.
 | Shortcut | Action |
 |----------|--------|
 | `Cmd+D` | Toggle sidebar |
+| `Cmd+,` | Toggle settings page |
 | `Cmd+Shift+P` | Command palette |
+| `Cmd+Shift+C` | Toggle comments pane |
+| `Cmd+Alt+C` | Comment selected text |
+| `Cmd+Shift+V` | Toggle split edit and preview |
 | `Cmd+Shift+Enter` | Presentation mode |
 | `Cmd+Shift+E` | Export menu |
 | `?` | Shortcuts help |
@@ -228,3 +256,18 @@ The server exposes these endpoints:
 | PUT | `/api/file` | Save file `{path, content}` |
 | POST | `/api/file` | Create file `{directory, name}` |
 | GET | `/api/raw?path=image.png` | Serve raw file (images, etc.) |
+
+## Review Sidecars
+
+Comments for `guide.md` are stored in `guide.md.mdb-comments.json`. MDB hides these sidecars from its explorer, but they remain normal JSON files that can be versioned, copied, and read by tools. Existing comments in `.mdb/comments.db` migrate lazily when each Markdown file is opened.
+
+Sidecars include selected text, start/end line anchors, blocking state, threaded replies, authors, and timestamps. Line anchors are navigation hints; selected text remains the durable anchor if edits move content.
+
+MDB installs its bundled `mdb-comments` agent skill when the app starts. The skill reads threads with `mdb comments list`, edits Markdown through the agent's normal file tools, replies with `mdb comments reply`, and changes blocking state only through `mdb comments block` or `mdb comments unblock`.
+
+## Conversion Notes
+
+- `html` produces sanitized standalone HTML.
+- `rich-text` and `rtf` produce RTF readable by Word, Pages, LibreOffice, and other rich-text editors.
+- `docx` produces native Office Open XML documents.
+- `pdf` produces searchable text PDFs using built-in fonts. Unsupported glyphs are replaced because no external font files are bundled.

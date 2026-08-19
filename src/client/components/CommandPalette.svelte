@@ -11,9 +11,14 @@
     action: () => void | Promise<void>;
   }
 
-  let { isOpen, onClose }: {
+  let { isOpen, onClose, onToggleSidebar, onToggleComments, onOpenSettings, onAddComment, onToggleSplitView }: {
     isOpen: boolean;
     onClose: () => void;
+    onToggleSidebar: () => void;
+    onToggleComments: () => void;
+    onOpenSettings: () => void;
+    onAddComment: () => void;
+    onToggleSplitView: () => void;
   } = $props();
 
   let query = $state('');
@@ -39,13 +44,27 @@
       : []
   );
 
+  let navigationActions: ActionItem[] = $derived([
+    { label: 'Toggle File Explorer', icon: '▤', action: onToggleSidebar },
+    { label: 'Open Settings', icon: '⚙', action: onOpenSettings },
+    ...($selectedFile && isMarkdownSelected
+      ? [
+          { label: 'Toggle Comments', icon: '◌', action: onToggleComments },
+          { label: 'Add Comment', icon: '+', action: onAddComment },
+          { label: 'Toggle Split Edit and Preview', icon: '◫', action: onToggleSplitView },
+        ]
+      : []),
+  ]);
+
+  let allActions = $derived([...navigationActions, ...exportActions]);
+
   let filteredActions: ActionItem[] = $derived.by(() => {
     const q = query.trim().toLowerCase();
     if (q.startsWith('>')) {
       const actionQuery = q.slice(1).trim();
-      return exportActions.filter(a => a.label.toLowerCase().includes(actionQuery));
+      return allActions.filter(a => a.label.toLowerCase().includes(actionQuery));
     }
-    if (!q) return exportActions;
+    if (!q) return allActions;
     return [];
   });
 
@@ -72,7 +91,7 @@
     loading = true;
     debounceTimer = setTimeout(async () => {
       try {
-        results = await searchFiles(q, $showHiddenFiles);
+        results = await searchFiles(q, $showHiddenFiles, 100, 'all');
         selectedIndex = 0;
       } catch {
         results = [];
@@ -198,7 +217,7 @@
     max-width: 90vw;
     max-height: 400px;
     background: var(--bg-secondary);
-    border: 1px solid var(--border);
+    border: 0;
     border-radius: 12px;
     box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
     display: flex;

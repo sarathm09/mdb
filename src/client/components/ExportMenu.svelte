@@ -85,12 +85,12 @@
 </script>
 
 <div class="export-menu" bind:this={menuEl} onkeydown={handleKeydown}>
-  <button class="topbar-btn" onclick={() => isOpen = !isOpen} title="Export (Cmd+Shift+E)">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+  <button class="topbar-action" onclick={() => isOpen = !isOpen} title="Export (Cmd+Shift+E)">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
       <polyline points="7 10 12 15 17 10"/>
       <line x1="12" y1="15" x2="12" y2="3"/>
-    </svg>Export
+    </svg>
   </button>
 
   {#if isOpen}
@@ -131,24 +131,34 @@
 <style>
   .export-menu {
     position: relative;
+    z-index: 300;
   }
 
-  .export-menu :global(.topbar-btn) {
-    background: var(--bg-tertiary);
-    color: var(--text-primary);
-    border: 1px solid var(--border);
-    padding: 5px 12px;
-    border-radius: 6px;
+  .export-menu :global(.topbar-action) {
+    min-height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: var(--control-raised);
+    color: color-mix(in srgb, var(--text-primary) 94%, white);
+    border: 0;
+    width: 30px;
+    padding: 5px;
+    border-radius: 9px;
     font-size: 13px;
     cursor: pointer;
-    font-weight: 500;
+    font-weight: 650;
+    text-shadow: var(--text-shadow);
     transition: background 0.15s ease;
+    box-shadow: var(--control-shadow);
   }
 
-  .export-menu :global(.topbar-btn:hover) {
+  .export-menu :global(.topbar-action svg) { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  .export-menu :global(.topbar-action:hover) {
     background: var(--accent-blue);
     color: #fff;
-    border-color: var(--accent-blue);
   }
 
   .export-dropdown {
@@ -157,11 +167,12 @@
     right: 0;
     margin-top: 4px;
     min-width: 260px;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-    z-index: 150;
+    background: var(--surface-raised);
+    border: 0;
+    border-radius: 12px;
+    box-shadow: var(--surface-shadow);
+    backdrop-filter: blur(16px);
+    z-index: 500;
     padding: 4px 0;
   }
 
@@ -182,7 +193,7 @@
   }
 
   .export-option:hover {
-    background: var(--bg-tertiary);
+    background: var(--surface-raised-hover);
   }
 
   .export-option svg {

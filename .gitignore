@@ -37,3 +37,9 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .superpowers
 
 to_be_deleted/
+
+# FastContext local trajectories
+.fastcontext/
+
+# MDB local runtime state
+.mdb/

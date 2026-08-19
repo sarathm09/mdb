@@ -44,8 +44,11 @@ export async function createFile(directory: string, name: string): Promise<strin
   return data.path;
 }
 
-export async function searchFiles(query: string, showHidden: boolean = false): Promise<FileEntry[]> {
-  const response = await fetch(`/api/search?q=${encodeURIComponent(query)}&showHidden=${showHidden}`);
+export async function searchFiles(query: string, showHidden: boolean = false, maxDepth?: number, types?: 'all' | 'markdown'): Promise<FileEntry[]> {
+  let url = `/api/search?q=${encodeURIComponent(query)}&showHidden=${showHidden}`;
+  if (maxDepth !== undefined) url += `&maxDepth=${maxDepth}`;
+  if (types) url += `&types=${types}`;
+  const response = await fetch(url);
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Failed to search files' }));
     throw new Error(error.error || 'Failed to search files');
@@ -65,6 +68,12 @@ export async function saveSettings(settings: Record<string, unknown>): Promise<v
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(settings),
   });
+}
+
+export async function fetchApplications(type: 'terminal'): Promise<string[]> {
+  const response = await fetch(`/api/applications?type=${type}`);
+  if (!response.ok) throw new Error('Failed to discover applications');
+  return response.json();
 }
 
 export function getRawFileUrl(path: string): string {

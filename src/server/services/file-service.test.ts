@@ -87,6 +87,14 @@ describe("listDirectory", () => {
     expect(names).toContain(".hidden-file");
   });
 
+  test("always hides MDB comment sidecars", async () => {
+    await fsWriteFile(path.join(rootDir, "readme.md.mdb-comments.json"), "{}");
+    const hidden = await listDirectory(rootDir, ".");
+    const shown = await listDirectory(rootDir, ".", true);
+    expect(hidden.entries.some((entry) => entry.name.endsWith(".mdb-comments.json"))).toBe(false);
+    expect(shown.entries.some((entry) => entry.name.endsWith(".mdb-comments.json"))).toBe(false);
+  });
+
   test("sorts directories before files", async () => {
     const listing = await listDirectory(rootDir, ".");
     const firstDir = listing.entries.findIndex((e) => e.isDirectory);
@@ -119,7 +127,7 @@ describe("listDirectory", () => {
     const listing = await listDirectory(rootDir, "subdir");
     expect(listing.path).toBe("subdir");
     expect(listing.entries).toHaveLength(1);
-    expect(listing.entries[0].name).toBe("child.md");
+    expect(listing.entries[0]!.name).toBe("child.md");
   });
 
   test("rejects path traversal", async () => {
@@ -240,19 +248,19 @@ describe("searchFiles", () => {
   test("finds markdown files matching query", async () => {
     const results = await searchFiles(rootDir, "guide");
     expect(results).toHaveLength(1);
-    expect(results[0].name).toBe("guide.md");
+    expect(results[0]!.name).toBe("guide.md");
   });
 
   test("searches case-insensitively", async () => {
     const results = await searchFiles(rootDir, "README");
     expect(results).toHaveLength(1);
-    expect(results[0].name).toBe("readme.md");
+    expect(results[0]!.name).toBe("readme.md");
   });
 
   test("finds files in nested directories", async () => {
     const results = await searchFiles(rootDir, "notes");
     expect(results).toHaveLength(1);
-    expect(results[0].name).toBe("notes.md");
+    expect(results[0]!.name).toBe("notes.md");
   });
 
   test("excludes hidden directories by default", async () => {
@@ -263,7 +271,7 @@ describe("searchFiles", () => {
   test("includes hidden directories when showHidden is true", async () => {
     const results = await searchFiles(rootDir, "secret", 20, 10, true);
     expect(results).toHaveLength(1);
-    expect(results[0].name).toBe("secret.md");
+    expect(results[0]!.name).toBe("secret.md");
   });
 
   test("excludes node_modules", async () => {

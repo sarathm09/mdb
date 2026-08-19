@@ -34,7 +34,7 @@ await Bun.write("./dist/index.html", `<!DOCTYPE html>
 </body>
 </html>`);
 
-await Bun.$`rm -rf dist/styles && cp -r src/client/styles dist/styles`;
+await Bun.$`rm -rf dist/styles dist/skills && cp -r src/client/styles dist/styles && cp -r skills dist/skills`;
 
 console.log(`Client build complete: ${result.outputs.length} files written to dist/`);
 
@@ -46,7 +46,7 @@ const serverResult = await esbuild({
   format: "esm",
   outfile: "./dist/cli.mjs",
   banner: { js: "#!/usr/bin/env node" },
-  external: ["open", "better-sqlite3", "ws"],
+  external: ["open", "better-sqlite3", "docx", "pdf-lib", "sanitize-html", "ws"],
   minify: false,
 });
 
