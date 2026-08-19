@@ -20,7 +20,7 @@
   --surface-raised-hover: rgba(24, 27, 42, 0.94);
   --control-raised: rgba(19, 22, 34, 0.92);
   --surface-shadow: 0 0 9px rgba(1, 2, 8, 0.84), 0 3px 6px rgba(1, 2, 8, 0.76);
-  --control-shadow: 0 2px 5px rgba(1, 2, 8, 0.76), 0 1px 2px rgba(1, 2, 8, 0.86);
+  --control-shadow: 0 2px 5px rgba(1, 2, 8, 0.36), 0 1px 2px rgba(1, 2, 8, 0.44);
 }
 
 .theme-catppuccin-mocha {
@@ -45,7 +45,7 @@
   --surface-raised-hover: rgba(28, 28, 45, 0.94);
   --control-raised: rgba(22, 22, 36, 0.92);
   --surface-shadow: 0 0 9px rgba(2, 2, 8, 0.84), 0 3px 6px rgba(2, 2, 8, 0.76);
-  --control-shadow: 0 2px 5px rgba(2, 2, 8, 0.76), 0 1px 2px rgba(2, 2, 8, 0.86);
+  --control-shadow: 0 2px 5px rgba(2, 2, 8, 0.36), 0 1px 2px rgba(2, 2, 8, 0.44);
 }
 
 .theme-github-dark {
@@ -70,7 +70,7 @@
   --surface-raised-hover: rgba(15, 21, 29, 0.96);
   --control-raised: rgba(9, 14, 20, 0.94);
   --surface-shadow: 0 0 9px rgba(0, 0, 0, 0.88), 0 3px 6px rgba(0, 0, 0, 0.8);
-  --control-shadow: 0 2px 5px rgba(0, 0, 0, 0.8), 0 1px 2px rgba(0, 0, 0, 0.9);
+  --control-shadow: 0 2px 5px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.48);
 }
 
 .theme-github-light {
@@ -95,7 +95,7 @@
   --surface-raised-hover: #f2f6fa;
   --control-raised: #f8fafc;
   --surface-shadow: 0 8px 24px rgba(29, 45, 62, 0.12), 0 1px 3px rgba(29, 45, 62, 0.1);
-  --control-shadow: 0 1px 3px rgba(29, 45, 62, 0.14);
+  --control-shadow: 0 1px 3px rgba(29, 45, 62, 0.09);
   --input-shadow: inset 0 1px 2px rgba(29, 45, 62, 0.12);
   --text-shadow: none;
 }
