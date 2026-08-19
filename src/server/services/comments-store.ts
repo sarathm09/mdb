@@ -2,7 +2,6 @@ import Database from "better-sqlite3";
 import path from "node:path";
 import {
   existsSync,
-  mkdirSync,
   readFileSync,
   readdirSync,
   renameSync,
@@ -27,7 +26,6 @@ export class CommentsStore {
   private legacyDb: Database.Database | null = null;
 
   constructor(private rootDir: string) {
-    mkdirSync(path.join(rootDir, ".mdb"), { recursive: true });
     const legacyPath = path.join(rootDir, ".mdb", "comments.db");
     if (existsSync(legacyPath)) {
       try {

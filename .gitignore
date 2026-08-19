@@ -41,6 +41,5 @@ to_be_deleted/
 # FastContext local trajectories
 .fastcontext/
 
-# MDB runtime database artifacts
-.mdb/*.db-shm
-.mdb/*.db-wal
+# MDB local runtime state
+.mdb/

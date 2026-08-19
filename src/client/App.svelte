@@ -336,18 +336,48 @@
     {/if}
     <div class="topbar-spacer"></div>
     <div class="topbar-actions">
-      {#if $currentPath}
-        <div class="topbar-sep"></div>
-        <button class="topbar-action" onclick={() => handleOpenExternal('finder')} title="Reveal in Finder">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2Z"/></svg><span class="action-label">Finder</span>
+      {#if $selectedFile && $isEditing}
+        <button class="topbar-action topbar-save-btn" onclick={handleSave} disabled={!$isDirty || saving} title="Save">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg><span>{saving ? 'Saving' : 'Save'}</span>
         </button>
-        <button class="topbar-action" onclick={() => handleOpenExternal('terminal')} title="Open in {terminalApp}">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg><span class="action-label">Terminal</span>
+        <button class="topbar-action" onclick={() => $isEditing = false} title="Preview">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg><span>Preview</span>
+        </button>
+      {:else if $selectedFile && isEditableFile}
+        <button class="topbar-action" onclick={() => { splitView = false; $isEditing = true; }} title="Edit">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg><span>Edit</span>
         </button>
       {/if}
+      {#if $selectedFile && isMarkdownFile && !$isEditing}
+        <button class="topbar-action" onclick={() => isPresentationOpen = true} title="Present (Cmd+Shift+Enter)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg><span>Present</span>
+        </button>
+        <button class="topbar-action" class:topbar-btn--active={splitView} onclick={toggleSplitView} title="Split edit and preview (Cmd+Shift+V)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16"/></svg><span>Split</span>
+        </button>
+        <div class="topbar-sep"></div>
+        <button class="topbar-action topbar-action--icon" class:topbar-btn--active={commentPaneOpen} onclick={toggleComments} title="Toggle comments (Cmd+Shift+C)" aria-label="Toggle comments">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>
+        </button>
+        <ExportMenu filePath={$selectedFile} bind:isOpen={exportMenuOpen} />
+      {/if}
+      {#if $currentPath}
+        <span class="open-in-label">Open in</span>
+        <button class="topbar-action topbar-action--icon" onclick={() => handleOpenExternal('terminal')} title="Open in {terminalApp}" aria-label="Open in {terminalApp}">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        </button>
+        <button class="topbar-action topbar-action--icon" onclick={() => handleOpenExternal('finder')} title="Reveal in Finder" aria-label="Reveal in Finder">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2Z"/></svg>
+        </button>
+        {#if $selectedFile}
+          <button class="topbar-action topbar-action--icon" onclick={() => handleOpenExternal('editor')} title="Open in {editorLabel}" aria-label="Open in {editorLabel}">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
+          </button>
+        {/if}
+      {/if}
       <div class="topbar-sep"></div>
-      <button class="topbar-action" class:topbar-btn--active={$activePage === 'settings'} onclick={openSettings} title="Settings (Cmd+,)">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3 1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8 1.7 1.7 0 0 0 1.5 1h.1a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg><span class="action-label">Settings</span>
+      <button class="topbar-action topbar-action--icon" class:topbar-btn--active={$activePage === 'settings'} onclick={openSettings} title="Settings (Cmd+,)" aria-label="Settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3 1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8 1.7 1.7 0 0 0 1.5 1h.1a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
       </button>
     </div>
   </div>
@@ -359,38 +389,6 @@
       <div class="resize-handle" onmousedown={startResize} role="separator" aria-orientation="vertical" aria-label="Resize sidebar"></div>
     {/if}
     <div class="content" class:no-select={isResizing}>
-      {#if $selectedFile && $activePage === null}
-        <div class="document-toolbar" aria-label="Document actions">
-          <div class="document-toolbar-spacer"></div>
-          {#if $isEditing}
-            <button class="topbar-action topbar-save-btn" onclick={handleSave} disabled={!$isDirty || saving} title="Save">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg><span class="action-label">{saving ? 'Saving' : 'Save'}</span>
-            </button>
-            <button class="topbar-action" onclick={() => $isEditing = false} title="Preview">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg><span class="action-label">Preview</span>
-            </button>
-          {:else if isEditableFile}
-            <button class="topbar-action" onclick={() => { splitView = false; $isEditing = true; }} title="Edit">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg><span class="action-label">Edit</span>
-            </button>
-          {/if}
-          {#if isMarkdownFile && !$isEditing}
-            <button class="topbar-action" class:topbar-btn--active={splitView} onclick={toggleSplitView} title="Split edit and preview (Cmd+Shift+V)">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16"/></svg><span class="action-label">Split</span>
-            </button>
-            <button class="topbar-action" onclick={() => isPresentationOpen = true} title="Present (Cmd+Shift+Enter)">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg><span class="action-label">Present</span>
-            </button>
-            <ExportMenu filePath={$selectedFile} bind:isOpen={exportMenuOpen} />
-            <button class="topbar-action" class:topbar-btn--active={commentPaneOpen} onclick={toggleComments} title="Toggle comments (Cmd+Shift+C)">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg><span class="action-label">Comments</span>
-            </button>
-          {/if}
-          <button class="topbar-action" onclick={() => handleOpenExternal('editor')} title="Open in {editorLabel}">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg><span class="action-label">Open</span>
-          </button>
-        </div>
-      {/if}
       {#if $activePage === 'settings'}
         <Settings
           {terminalApp}
@@ -500,21 +498,20 @@
     display: flex;
     align-items: center;
     gap: 6px;
+    flex-wrap: nowrap;
   }
 
-  .document-toolbar {
-    position: relative;
-    z-index: 15;
-    min-height: 38px;
-    display: flex;
-    flex-shrink: 0;
-    align-items: center;
-    gap: 6px;
-    padding: 0 2px 8px;
-    overflow: visible;
+  .topbar-action--icon {
+    width: 30px;
+    padding: 5px;
   }
 
-  .document-toolbar-spacer { flex: 1; }
+  .open-in-label {
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 650;
+    white-space: nowrap;
+  }
 
   .topbar-action {
     min-height: 30px;
@@ -557,7 +554,11 @@
   }
 
   .topbar-sep {
-    display: none;
+    width: 1px;
+    height: 22px;
+    flex-shrink: 0;
+    margin: 0 3px;
+    background: color-mix(in srgb, var(--border) 72%, transparent);
   }
 
   .resize-handle {
@@ -606,8 +607,8 @@
 
   @media (max-width: 820px) {
     .split-view { grid-template-columns: 1fr; grid-template-rows: minmax(280px, 1fr) minmax(280px, 1fr); overflow-y: auto; }
-    .action-label { display: none; }
-    .topbar-action { width: 30px; padding: 5px; }
+    .topbar-file { display: none; }
+    .topbar-action { padding-inline: 7px; }
   }
 
   .comment-pane-transition {

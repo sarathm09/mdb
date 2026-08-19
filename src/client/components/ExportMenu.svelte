@@ -90,7 +90,7 @@
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
       <polyline points="7 10 12 15 17 10"/>
       <line x1="12" y1="15" x2="12" y2="3"/>
-    </svg><span class="action-label">Export</span>
+    </svg>
   </button>
 
   {#if isOpen}
@@ -143,7 +143,8 @@
     background: var(--control-raised);
     color: color-mix(in srgb, var(--text-primary) 94%, white);
     border: 0;
-    padding: 5px 10px;
+    width: 30px;
+    padding: 5px;
     border-radius: 9px;
     font-size: 13px;
     cursor: pointer;
@@ -220,11 +221,6 @@
     z-index: 300;
     pointer-events: none;
     animation: toast-in 0.2s ease;
-  }
-
-  @media (max-width: 820px) {
-    .export-menu :global(.action-label) { display: none; }
-    .export-menu :global(.topbar-action) { width: 30px; padding: 5px; }
   }
 
   @keyframes toast-in {
